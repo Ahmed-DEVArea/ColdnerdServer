@@ -788,5 +788,15 @@ def debug_env():
 
 @app.route("/", methods=["GET"])
 def serve_dashboard():
-    public_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
-    return send_from_directory(public_dir, "index.html")
+    # Try multiple paths for Vercel serverless compatibility
+    candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public"),
+        "/var/task/public",
+        "/var/task/user/public",
+    ]
+    for d in candidates:
+        html_path = os.path.join(d, "index.html")
+        if os.path.exists(html_path):
+            return send_from_directory(d, "index.html")
+    return "Dashboard not found. Checked: " + ", ".join(candidates), 404
