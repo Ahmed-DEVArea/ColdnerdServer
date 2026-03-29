@@ -185,11 +185,11 @@ tr:hover td{background:#F9FAFB}
   <div class="charts-row">
     <div class="chart-card">
       <h3>Words Generated <div class="chart-tabs"><button class="active" onclick="setChartPeriod('daily',this)">Daily</button><button onclick="setChartPeriod('weekly',this)">Weekly</button><button onclick="setChartPeriod('monthly',this)">Monthly</button></div></h3>
-      <canvas id="wordsChart" height="220"></canvas>
+      <div style="position:relative;height:220px"><canvas id="wordsChart"></canvas></div>
     </div>
     <div class="chart-card" style="position:relative">
       <h3>License Tiers</h3>
-      <canvas id="tierChart" height="220"></canvas>
+      <div style="position:relative;height:220px"><canvas id="tierChart"></canvas></div>
       <div class="donut-center" id="donut-center">
         <div class="pct" id="donut-total">&mdash;</div>
         <div class="lbl">Total Keys</div>
@@ -200,7 +200,7 @@ tr:hover td{background:#F9FAFB}
   <!-- Monthly Usage Bar Chart -->
   <div class="chart-full">
     <h3>TTS Usage Overview <div class="chart-tabs"><button class="active" onclick="setBarPeriod('daily',this)">Daily</button><button onclick="setBarPeriod('weekly',this)">Weekly</button></div></h3>
-    <canvas id="usageChart" height="180"></canvas>
+    <div style="position:relative;height:180px"><canvas id="usageChart"></canvas></div>
   </div>
 
   <!-- Tab Navigation -->
