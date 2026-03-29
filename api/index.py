@@ -3,7 +3,7 @@ ColdNerd License Server — Flask API for Vercel
 License management + TTS word-tracking via Hume.ai
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from upstash_redis import Redis
 import os
 import json
@@ -782,3 +782,11 @@ def debug_env():
         result["redis_connected"] = False
         result["redis_error"] = str(e)
     return cors(result)
+
+
+# ==================== DASHBOARD ====================
+
+@app.route("/", methods=["GET"])
+def serve_dashboard():
+    public_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
+    return send_from_directory(public_dir, "index.html")
