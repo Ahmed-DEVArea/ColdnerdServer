@@ -1,578 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IG Tool — License Admin</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        :root{
-            --bg:#0a0a1a;--card:#141428;--card-border:#1e1e3a;
-            --accent:#FF4B4B;--accent-hover:#FF6B6B;
-            --success:#4ade80;--warning:#fbbf24;--danger:#f87171;--info:#60a5fa;
-            --text:#e0e0e0;--text-dim:#8892b0;--text-muted:#555;
-        }
-        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-        
-        /* LOGIN */
-        #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
-        .login-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:40px;width:100%;max-width:420px;text-align:center}
-        .login-card h1{font-size:28px;margin-bottom:8px}
-        .login-card p{color:var(--text-dim);margin-bottom:24px;font-size:14px}
-        .login-card input{width:100%;padding:12px 16px;border:2px solid var(--card-border);border-radius:8px;background:#0d0d20;color:var(--text);font-size:14px;outline:none;margin-bottom:16px;transition:.2s}
-        .login-card input:focus{border-color:var(--accent)}
-        
-        /* DASHBOARD */
-        #dashboard{display:none;padding:20px 30px;max-width:1400px;margin:0 auto}
-        .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
-        .dash-header h1{font-size:24px}
-        .dash-header .logout-btn{background:transparent;border:1px solid var(--card-border);color:var(--text-dim);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;transition:.2s}
-        .dash-header .logout-btn:hover{border-color:var(--accent);color:var(--accent)}
-        
-        /* STATS */
-        .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:30px}
-        .stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px}
-        .stat-card .stat-label{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-        .stat-card .stat-value{font-size:28px;font-weight:700}
-        .stat-card.green .stat-value{color:var(--success)}
-        .stat-card.red .stat-value{color:var(--danger)}
-        .stat-card.yellow .stat-value{color:var(--warning)}
-        .stat-card.blue .stat-value{color:var(--info)}
-        .stat-card.accent .stat-value{color:var(--accent)}
-        
-        /* SECTIONS */
-        .section{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:24px;margin-bottom:24px}
-        .section h2{font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-        
-        /* FORM */
-        .form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-        .form-group{display:flex;flex-direction:column;flex:1;min-width:150px}
-        .form-group label{font-size:12px;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
-        .form-group input,.form-group select,.form-group textarea{padding:10px 12px;border:2px solid var(--card-border);border-radius:8px;background:#0d0d20;color:var(--text);font-size:13px;outline:none;transition:.2s}
-        .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
-        .form-group select{cursor:pointer}
-        
-        /* BUTTONS */
-        .btn{padding:10px 20px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
-        .btn-primary{background:var(--accent);color:#fff}
-        .btn-primary:hover{background:var(--accent-hover)}
-        .btn-success{background:#166534;color:var(--success)}
-        .btn-success:hover{background:#15803d}
-        .btn-danger{background:#7f1d1d;color:var(--danger)}
-        .btn-danger:hover{background:#991b1b}
-        .btn-warning{background:#78350f;color:var(--warning)}
-        .btn-warning:hover{background:#92400e}
-        .btn-info{background:#1e3a5f;color:var(--info)}
-        .btn-info:hover{background:#1e4976}
-        .btn-sm{padding:6px 12px;font-size:11px}
-        .btn-ghost{background:transparent;border:1px solid var(--card-border);color:var(--text-dim)}
-        .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
-        
-        /* TABLE */
-        .table-wrapper{overflow-x:auto}
-        table{width:100%;border-collapse:collapse;font-size:13px}
-        th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--card-border);color:var(--text-dim);font-size:11px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
-        td{padding:10px 12px;border-bottom:1px solid #1a1a30;white-space:nowrap}
-        tr:hover td{background:rgba(255,75,75,.03)}
-        
-        /* BADGES */
-        .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase}
-        .badge-active{background:#166534;color:var(--success)}
-        .badge-expired{background:#78350f;color:var(--warning)}
-        .badge-revoked{background:#7f1d1d;color:var(--danger)}
-        .badge-trial{background:#312e81;color:#a5b4fc}
-        .badge-basic{background:#1e3a5f;color:var(--info)}
-        .badge-pro{background:#4c1d95;color:#c4b5fd}
-        .badge-agency{background:#701a75;color:#f0abfc}
-        
-        /* KEY DISPLAY */
-        .key-display{font-family:'Courier New',monospace;font-size:14px;background:#0d0d20;padding:12px 16px;border-radius:8px;border:2px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
-        .key-display .key-text{color:var(--success);font-weight:700;letter-spacing:1px}
-        .key-display .copy-btn{background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
-        .key-display .copy-btn:hover{background:var(--accent-hover)}
-        
-        /* FILTERS */
-        .filters{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-        .filters input{padding:8px 12px;border:2px solid var(--card-border);border-radius:8px;background:#0d0d20;color:var(--text);font-size:13px;outline:none;min-width:200px}
-        .filters input:focus{border-color:var(--accent)}
-        .filters select{padding:8px 12px;border:2px solid var(--card-border);border-radius:8px;background:#0d0d20;color:var(--text);font-size:13px;outline:none;cursor:pointer}
-        
-        /* MODAL */
-        .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;padding:20px}
-        .modal-overlay.show{display:flex}
-        .modal{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:28px;width:100%;max-width:550px;max-height:80vh;overflow-y:auto}
-        .modal h3{font-size:18px;margin-bottom:16px}
-        .modal .close-modal{float:right;background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px}
-        .modal .close-modal:hover{color:var(--text)}
-        .modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
-        
-        /* MACHINE LIST */
-        .machine-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#0d0d20;border-radius:8px;margin-bottom:8px;font-size:12px}
-        .machine-item .machine-info{flex:1}
-        .machine-item .machine-hwid{color:var(--text-dim);font-family:monospace;font-size:11px}
-        
-        /* GENERATED KEY RESULT */
-        #generated-key-result{display:none;margin-top:16px}
-        
-        /* TOAST */
-        .toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:14px 20px;font-size:13px;z-index:2000;animation:slideIn .3s ease;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-        .toast.success{border-left:4px solid var(--success)}
-        .toast.error{border-left:4px solid var(--danger)}
-        @keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
-        
-        /* LOADING */
-        .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--text-dim);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        
-        /* RESPONSIVE */
-        @media(max-width:768px){
-            #dashboard{padding:12px 16px}
-            .stats-grid{grid-template-columns:repeat(2,1fr)}
-            .form-row{flex-direction:column}
-            .table-wrapper{font-size:12px}
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColdNerd — Admin Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F0F2F8;--card:#fff;--card-border:#E5E7EB;
+  --primary:#4F6BF6;--primary-hover:#3B55E6;--primary-light:#EEF0FF;
+  --success:#10B981;--success-bg:#ECFDF5;
+  --warning:#F59E0B;--warning-bg:#FFFBEB;
+  --danger:#EF4444;--danger-bg:#FEF2F2;
+  --info:#3B82F6;--info-bg:#EFF6FF;
+  --text:#1A1A2E;--text-sec:#6B7280;--text-muted:#9CA3AF;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04);
+  --radius:12px;
+}
+body{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#4F6BF6 0%,#7C3AED 100%)}
+.login-card{background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.login-card h1{font-size:26px;color:var(--text);margin-bottom:6px;font-weight:700}
+.login-card p{color:var(--text-sec);margin-bottom:28px;font-size:14px}
+.login-card input{width:100%;padding:14px 16px;border:2px solid var(--card-border);border-radius:10px;background:#F9FAFB;color:var(--text);font-size:14px;outline:none;margin-bottom:16px;transition:.2s}
+.login-card input:focus{border-color:var(--primary);background:#fff}
+.login-card .btn-login{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s}
+.login-card .btn-login:hover{background:var(--primary-hover)}
+#dashboard{display:none;padding:24px 32px;max-width:1400px;margin:0 auto}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.dash-header h1{font-size:22px;font-weight:700;color:var(--text)}
+.dash-header h1 span{font-size:22px}
+.header-right{display:flex;gap:10px;align-items:center}
+.period-toggle{display:flex;background:#fff;border-radius:8px;overflow:hidden;border:1px solid var(--card-border)}
+.period-toggle button{padding:8px 16px;background:none;border:none;font-size:13px;cursor:pointer;color:var(--text-sec);font-weight:500;transition:.2s}
+.period-toggle button.active{background:var(--primary);color:#fff}
+.btn-logout{padding:8px 16px;background:#fff;border:1px solid var(--card-border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--text-sec);font-weight:500;transition:.2s}
+.btn-logout:hover{border-color:var(--danger);color:var(--danger)}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:28px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:16px;border:1px solid var(--card-border)}
+.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat-icon.blue{background:var(--info-bg);color:var(--info)}
+.stat-icon.green{background:var(--success-bg);color:var(--success)}
+.stat-icon.orange{background:var(--warning-bg);color:var(--warning)}
+.stat-icon.purple{background:#F3E8FF;color:#7C3AED}
+.stat-info .stat-label{font-size:13px;color:var(--text-sec);margin-bottom:4px}
+.stat-info .stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1.1}
+.stat-info .stat-change{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:4px}
+.stat-change.up{color:var(--success)}
+.stat-change.down{color:var(--danger)}
+.charts-row{display:grid;grid-template-columns:1.2fr 0.8fr;gap:20px;margin-bottom:28px}
+.chart-card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--card-border)}
+.chart-card h3{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.chart-tabs{display:flex;gap:4px}
+.chart-tabs button{padding:4px 12px;background:none;border:1px solid var(--card-border);border-radius:6px;font-size:12px;cursor:pointer;color:var(--text-sec);transition:.2s}
+.chart-tabs button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.chart-full{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:28px;border:1px solid var(--card-border)}
+.chart-full h3{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.section{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;border:1px solid var(--card-border)}
+.section h2{font-size:17px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.form-group{display:flex;flex-direction:column;flex:1;min-width:150px}
+.form-group label{font-size:12px;color:var(--text-sec);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select,.form-group textarea{padding:10px 12px;border:1px solid var(--card-border);border-radius:8px;background:#F9FAFB;color:var(--text);font-size:13px;outline:none;transition:.2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--primary);background:#fff}
+.btn{padding:10px 20px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#059669}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#DC2626}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-warning:hover{background:#D97706}
+.btn-info{background:var(--info);color:#fff}
+.btn-info:hover{background:#2563EB}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn-outline{background:#fff;border:1px solid var(--card-border);color:var(--text-sec)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:12px;border-bottom:2px solid var(--card-border);color:var(--text-sec);font-size:11px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid #F3F4F6;white-space:nowrap}
+tr:hover td{background:#F9FAFB}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-active{background:var(--success-bg);color:var(--success)}
+.badge-expired{background:var(--warning-bg);color:var(--warning)}
+.badge-revoked{background:var(--danger-bg);color:var(--danger)}
+.badge-trial{background:#EEF2FF;color:#4F46E5}
+.badge-basic{background:var(--info-bg);color:var(--info)}
+.badge-pro{background:#F3E8FF;color:#7C3AED}
+.badge-agency{background:#FDF2F8;color:#DB2777}
+.key-display{font-family:'Courier New',monospace;font-size:14px;background:var(--primary-light);padding:14px 16px;border-radius:10px;border:2px solid #C7D2FE;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.key-display .key-text{color:var(--primary);font-weight:700;letter-spacing:1px}
+.key-display .copy-btn{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600}
+.key-display .copy-btn:hover{background:var(--primary-hover)}
+.filters{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filters input{padding:10px 14px;border:1px solid var(--card-border);border-radius:8px;background:#F9FAFB;color:var(--text);font-size:13px;outline:none;min-width:200px}
+.filters input:focus{border-color:var(--primary)}
+.filters select{padding:10px 14px;border:1px solid var(--card-border);border-radius:8px;background:#F9FAFB;color:var(--text);font-size:13px;outline:none;cursor:pointer}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:28px;width:100%;max-width:550px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:18px;margin-bottom:16px;font-weight:600}
+.modal .close-modal{float:right;background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px;transition:.2s}
+.modal .close-modal:hover{color:var(--text)}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.machine-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;margin-bottom:8px;font-size:12px;border:1px solid var(--card-border)}
+.progress-bar{height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;width:100%}
+.progress-bar .fill{height:100%;border-radius:4px;transition:width .3s}
+.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.donut-center .pct{font-size:32px;font-weight:700;color:var(--text)}
+.donut-center .lbl{font-size:12px;color:var(--text-sec)}
+#generated-key-result{display:none;margin-top:16px}
+.toast{position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid var(--card-border);border-radius:12px;padding:14px 20px;font-size:13px;z-index:2000;animation:slideIn .3s ease;box-shadow:var(--shadow-md)}
+.toast.success{border-left:4px solid var(--success)}
+.toast.error{border-left:4px solid var(--danger)}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--card-border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tab-nav{display:flex;gap:4px;margin-bottom:24px;background:#F9FAFB;border-radius:10px;padding:4px;border:1px solid var(--card-border)}
+.tab-nav button{flex:1;padding:10px 16px;background:none;border:none;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-sec);cursor:pointer;transition:.2s}
+.tab-nav button.active{background:#fff;color:var(--primary);box-shadow:var(--shadow);font-weight:600}
+.tab-content{display:none}
+.tab-content.active{display:block}
+@media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
+@media(max-width:768px){#dashboard{padding:16px}.stats-grid{grid-template-columns:1fr}.form-row{flex-direction:column}}
+</style>
 </head>
 <body>
-
-<!-- ===== LOGIN SCREEN ===== -->
 <div id="login-screen">
-    <div class="login-card">
-        <h1>🔐 IG Tool Admin</h1>
-        <p>License Management Dashboard</p>
-        <input type="password" id="login-password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
-        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">🔓 Login</button>
-        <p id="login-error" style="color:var(--danger);margin-top:12px;font-size:13px;display:none"></p>
-    </div>
+  <div class="login-card">
+    <h1>&#128274; ColdNerd Admin</h1>
+    <p>License &amp; TTS Management Dashboard</p>
+    <input type="password" id="login-password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <p id="login-error" style="color:var(--danger);margin-top:14px;font-size:13px;display:none"></p>
+  </div>
 </div>
 
-<!-- ===== DASHBOARD ===== -->
 <div id="dashboard">
-    <!-- Header -->
-    <div class="dash-header">
-        <h1>📊 License Dashboard</h1>
-        <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-ghost btn-sm" onclick="refreshAll()">🔄 Refresh</button>
-            <button class="dash-header logout-btn" onclick="doLogout()">Logout</button>
-        </div>
+  <!-- Header -->
+  <div class="dash-header">
+    <h1><span>&#128075;</span> Welcome, Admin</h1>
+    <div class="header-right">
+      <button class="btn btn-outline btn-sm" onclick="refreshAll()">&#128260; Refresh</button>
+      <button class="btn-logout" onclick="doLogout()">Logout</button>
     </div>
-    
-    <!-- Stats -->
-    <div class="stats-grid" id="stats-grid">
-        <div class="stat-card"><div class="stat-label">Total Keys</div><div class="stat-value" id="s-total">—</div></div>
-        <div class="stat-card green"><div class="stat-label">Active</div><div class="stat-value" id="s-active">—</div></div>
-        <div class="stat-card yellow"><div class="stat-label">Expired</div><div class="stat-value" id="s-expired">—</div></div>
-        <div class="stat-card red"><div class="stat-label">Revoked</div><div class="stat-value" id="s-revoked">—</div></div>
-        <div class="stat-card accent"><div class="stat-label">Monthly Revenue</div><div class="stat-value" id="s-revenue">—</div></div>
-        <div class="stat-card blue"><div class="stat-label">Active Machines</div><div class="stat-value" id="s-machines">—</div></div>
-    </div>
+  </div>
 
-    <!-- Generate Key -->
+  <!-- Stats Cards -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">&#128172;</div>
+      <div class="stat-info">
+        <div class="stat-label">TTS Words Generated</div>
+        <div class="stat-value" id="s-tts-words">&mdash;</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">&#128100;</div>
+      <div class="stat-info">
+        <div class="stat-label">Active Licenses</div>
+        <div class="stat-value" id="s-active">&mdash;</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">&#127911;</div>
+      <div class="stat-info">
+        <div class="stat-label">TTS Requests</div>
+        <div class="stat-value" id="s-tts-requests">&mdash;</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">&#128176;</div>
+      <div class="stat-info">
+        <div class="stat-label">Monthly Revenue</div>
+        <div class="stat-value" id="s-revenue">&mdash;</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Words Generated <div class="chart-tabs"><button class="active" onclick="setChartPeriod('daily',this)">Daily</button><button onclick="setChartPeriod('weekly',this)">Weekly</button><button onclick="setChartPeriod('monthly',this)">Monthly</button></div></h3>
+      <canvas id="wordsChart" height="220"></canvas>
+    </div>
+    <div class="chart-card" style="position:relative">
+      <h3>License Tiers</h3>
+      <canvas id="tierChart" height="220"></canvas>
+      <div class="donut-center" id="donut-center">
+        <div class="pct" id="donut-total">&mdash;</div>
+        <div class="lbl">Total Keys</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Usage Bar Chart -->
+  <div class="chart-full">
+    <h3>TTS Usage Overview <div class="chart-tabs"><button class="active" onclick="setBarPeriod('daily',this)">Daily</button><button onclick="setBarPeriod('weekly',this)">Weekly</button></div></h3>
+    <canvas id="usageChart" height="180"></canvas>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-nav">
+    <button class="active" onclick="switchTab('licenses',this)">&#128273; Licenses</button>
+    <button onclick="switchTab('tts',this)">&#127911; TTS Management</button>
+  </div>
+
+  <!-- Licenses Tab -->
+  <div class="tab-content active" id="tab-licenses">
     <div class="section">
-        <h2>🔑 Generate License Key</h2>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Tier</label>
-                <select id="gen-tier">
-                    <option value="basic">Basic ($29/mo)</option>
-                    <option value="pro" selected>Pro ($49/mo)</option>
-                    <option value="agency">Agency ($99/mo)</option>
-                    <option value="trial">Trial (Free)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Duration (days)</label>
-                <input type="number" id="gen-duration" value="30" min="1" max="365">
-            </div>
-            <div class="form-group">
-                <label>Max Machines (0 = tier default)</label>
-                <input type="number" id="gen-machines" value="0" min="0" max="100">
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Notes (optional)</label>
-                <input type="text" id="gen-notes" placeholder="Customer name, order ID, etc.">
-            </div>
-        </div>
-        <button class="btn btn-primary" onclick="generateKey()" id="gen-btn">🔑 Generate Key</button>
-        
-        <div id="generated-key-result">
-            <div class="key-display">
-                <span class="key-text" id="gen-key-text"></span>
-                <button class="copy-btn" onclick="copyKey()">📋 Copy</button>
-            </div>
-        </div>
+      <h2>&#128273; Generate License Key</h2>
+      <div class="form-row">
+        <div class="form-group"><label>Tier</label><select id="gen-tier"><option value="basic">Basic ($29/mo)</option><option value="pro" selected>Pro ($49/mo)</option><option value="agency">Agency ($99/mo)</option><option value="trial">Trial (Free)</option></select></div>
+        <div class="form-group"><label>Duration (days)</label><input type="number" id="gen-duration" value="30" min="1" max="365"></div>
+        <div class="form-group"><label>Max Machines (0=default)</label><input type="number" id="gen-machines" value="0" min="0" max="100"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Notes</label><input type="text" id="gen-notes" placeholder="Customer name, order ID..."></div>
+      </div>
+      <button class="btn btn-primary" onclick="generateKey()" id="gen-btn">&#128273; Generate Key</button>
+      <div id="generated-key-result"><div class="key-display"><span class="key-text" id="gen-key-text"></span><button class="copy-btn" onclick="copyKey()">&#128203; Copy</button></div></div>
     </div>
-    
-    <!-- Keys List -->
     <div class="section">
-        <h2>📋 All License Keys</h2>
-        <div class="filters">
-            <input type="text" id="filter-search" placeholder="🔍 Search key, notes..." oninput="filterKeys()">
-            <select id="filter-status" onchange="filterKeys()">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="expired">Expired</option>
-                <option value="revoked">Revoked</option>
-            </select>
-            <select id="filter-tier" onchange="filterKeys()">
-                <option value="">All Tiers</option>
-                <option value="trial">Trial</option>
-                <option value="basic">Basic</option>
-                <option value="pro">Pro</option>
-                <option value="agency">Agency</option>
-            </select>
-        </div>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Key</th><th>Tier</th><th>Status</th><th>Machines</th>
-                        <th>Created</th><th>Expires</th><th>Notes</th><th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="keys-tbody"></tbody>
-            </table>
-        </div>
-        <p id="keys-empty" style="text-align:center;color:var(--text-dim);padding:30px;display:none">No license keys found. Generate one above.</p>
+      <h2>&#128203; All License Keys</h2>
+      <div class="filters">
+        <input type="text" id="filter-search" placeholder="&#128269; Search key, notes..." oninput="filterKeys()">
+        <select id="filter-status" onchange="filterKeys()"><option value="">All Status</option><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option></select>
+        <select id="filter-tier" onchange="filterKeys()"><option value="">All Tiers</option><option value="trial">Trial</option><option value="basic">Basic</option><option value="pro">Pro</option><option value="agency">Agency</option></select>
+      </div>
+      <div style="overflow-x:auto">
+        <table><thead><tr><th>Key</th><th>Tier</th><th>Status</th><th>Machines</th><th>Created</th><th>Expires</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="keys-tbody"></tbody></table>
+      </div>
+      <p id="keys-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No license keys found.</p>
     </div>
+  </div>
+
+  <!-- TTS Tab -->
+  <div class="tab-content" id="tab-tts">
+    <div class="section">
+      <h2>&#9881;&#65039; TTS Settings</h2>
+      <div class="form-row">
+        <div class="form-group"><label>Default Word Limit (new users)</label><input type="number" id="tts-default-limit" value="5000" min="100"></div>
+        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="setDefaultLimit()" style="margin-top:auto">Save Default Limit</button></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
+        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">TTS Active Users</div><div class="stat-value" id="s-tts-users">&mdash;</div></div></div>
+        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Words</div><div class="stat-value" id="s-tts-words2">&mdash;</div></div></div>
+        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Requests</div><div class="stat-value" id="s-tts-reqs2">&mdash;</div></div></div>
+        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Default Limit</div><div class="stat-value" id="s-tts-deflim">&mdash;</div></div></div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>&#128100; TTS Users</h2>
+      <div style="overflow-x:auto">
+        <table><thead><tr><th>License Key</th><th>Tier</th><th>Words Used</th><th>Limit</th><th>Usage</th><th>Requests</th><th>Last Request</th><th>Actions</th></tr></thead><tbody id="tts-tbody"></tbody></table>
+      </div>
+      <p id="tts-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No TTS users yet.</p>
+    </div>
+  </div>
 </div>
 
-<!-- ===== MODAL: KEY DETAILS ===== -->
-<div class="modal-overlay" id="modal-details">
-    <div class="modal">
-        <button class="close-modal" onclick="closeModal('modal-details')">&times;</button>
-        <h3>🔍 Key Details</h3>
-        <div id="modal-details-body"></div>
-    </div>
-</div>
-
-<!-- ===== MODAL: EXTEND ===== -->
-<div class="modal-overlay" id="modal-extend">
-    <div class="modal">
-        <button class="close-modal" onclick="closeModal('modal-extend')">&times;</button>
-        <h3>⏰ Extend License</h3>
-        <p style="color:var(--text-dim);margin-bottom:16px;font-size:13px">Extending key: <code id="extend-key-display" style="color:var(--accent)"></code></p>
-        <div class="form-group" style="margin-bottom:16px">
-            <label>Days to Add</label>
-            <input type="number" id="extend-days" value="30" min="1" max="365">
-        </div>
-        <div class="modal-actions">
-            <button class="btn btn-ghost" onclick="closeModal('modal-extend')">Cancel</button>
-            <button class="btn btn-warning" onclick="doExtend()" id="extend-btn">⏰ Extend</button>
-        </div>
-    </div>
-</div>
+<!-- Modals -->
+<div class="modal-overlay" id="modal-details"><div class="modal"><button class="close-modal" onclick="closeModal('modal-details')">&times;</button><h3>&#128269; Key Details</h3><div id="modal-details-body"></div></div></div>
+<div class="modal-overlay" id="modal-extend"><div class="modal"><button class="close-modal" onclick="closeModal('modal-extend')">&times;</button><h3>&#9200; Extend License</h3><p style="color:var(--text-sec);margin-bottom:16px;font-size:13px">Key: <code id="extend-key-display" style="color:var(--primary);font-weight:600"></code></p><div class="form-group" style="margin-bottom:16px"><label>Days to Add</label><input type="number" id="extend-days" value="30" min="1" max="365"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-extend')">Cancel</button><button class="btn btn-warning" onclick="doExtend()" id="extend-btn">&#9200; Extend</button></div></div></div>
+<div class="modal-overlay" id="modal-tts-action"><div class="modal"><button class="close-modal" onclick="closeModal('modal-tts-action')">&times;</button><h3 id="tts-action-title">TTS Action</h3><p style="color:var(--text-sec);margin-bottom:16px;font-size:13px">Key: <code id="tts-action-key" style="color:var(--primary);font-weight:600"></code></p><div id="tts-action-body"></div><div class="modal-actions" id="tts-action-btns"></div></div></div>
 
 <script>
-// ==================== STATE ====================
-let API_BASE = '';  // relative URL — same Vercel deployment
-let adminPassword = '';
-let allKeys = [];
-let currentActionKey = '';
+let API='/api',adminPw='',allKeys=[],currentKey='';
+let wordsChart,tierChart,usageChart,dailyData=[];
 
-// ==================== AUTH ====================
-function doLogin() {
-    const pw = document.getElementById('login-password').value.trim();
-    if (!pw) return;
-    adminPassword = pw;
-    // Test with a stats call
-    apiGet('/api/admin/stats').then(r => {
-        if (r.success) {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-            localStorage.setItem('ig_admin_pw', pw);
-            refreshAll();
-        } else {
-            showLoginError('Invalid password');
-        }
-    }).catch(() => showLoginError('Connection error'));
+// ─── Auth ───
+function doLogin(){const pw=document.getElementById('login-password').value.trim();if(!pw)return;adminPw=pw;apiGet('/admin/stats').then(r=>{if(r.success){document.getElementById('login-screen').style.display='none';document.getElementById('dashboard').style.display='block';localStorage.setItem('cn_admin_pw',pw);refreshAll()}else showLoginErr('Invalid password')}).catch(()=>showLoginErr('Connection error'))}
+function doLogout(){adminPw='';localStorage.removeItem('cn_admin_pw');document.getElementById('dashboard').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('login-password').value=''}
+function showLoginErr(m){const e=document.getElementById('login-error');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',3000)}
+window.addEventListener('DOMContentLoaded',()=>{const s=localStorage.getItem('cn_admin_pw');if(s){adminPw=s;apiGet('/admin/stats').then(r=>{if(r.success){document.getElementById('login-screen').style.display='none';document.getElementById('dashboard').style.display='block';refreshAll()}}).catch(()=>{})}});
+
+// ─── API ───
+async function apiGet(p){const r=await fetch(API+p,{headers:{'X-Admin-Password':adminPw}});return r.json()}
+async function apiPost(p,b){const r=await fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':adminPw},body:JSON.stringify(b)});return r.json()}
+
+// ─── Tabs ───
+function switchTab(id,btn){document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+id).classList.add('active');document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+
+// ─── Refresh ───
+async function refreshAll(){loadStats();loadKeys();loadTTSUsers()}
+
+async function loadStats(){try{const r=await apiGet('/admin/stats');if(!r.success)return;const s=r.stats;
+document.getElementById('s-tts-words').textContent=fmt(s.tts_total_words||0);
+document.getElementById('s-active').textContent=s.active;
+document.getElementById('s-tts-requests').textContent=fmt(s.tts_total_requests||0);
+document.getElementById('s-revenue').textContent='$'+fmt(s.monthly_revenue||0);
+document.getElementById('s-tts-users').textContent=s.tts_active_users||0;
+document.getElementById('s-tts-words2').textContent=fmt(s.tts_total_words||0);
+document.getElementById('s-tts-reqs2').textContent=fmt(s.tts_total_requests||0);
+document.getElementById('s-tts-deflim').textContent=fmt(s.tts_default_limit||5000);
+document.getElementById('tts-default-limit').value=s.tts_default_limit||5000;
+document.getElementById('donut-total').textContent=s.total_keys;
+dailyData=s.tts_daily||[];
+renderWordsChart(dailyData);renderTierChart(s);renderUsageChart(dailyData);
+}catch(e){toast('Failed to load stats','error')}}
+
+function fmt(n){return n>=1000?n.toLocaleString():n}
+
+// ─── Charts ───
+function renderWordsChart(data){
+  const ctx=document.getElementById('wordsChart');
+  if(wordsChart)wordsChart.destroy();
+  wordsChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Words',data:data.map(d=>d.words),borderColor:'#4F6BF6',backgroundColor:'rgba(79,107,246,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
 }
-
-function doLogout() {
-    adminPassword = '';
-    localStorage.removeItem('ig_admin_pw');
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('login-password').value = '';
+function renderTierChart(s){
+  const ctx=document.getElementById('tierChart');
+  if(tierChart)tierChart.destroy();
+  tierChart=new Chart(ctx,{type:'doughnut',data:{labels:['Trial','Basic','Pro','Agency'],datasets:[{data:[s.trial||0,s.basic||0,s.pro||0,s.agency||0],backgroundColor:['#818CF8','#3B82F6','#7C3AED','#DB2777'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}}}})
 }
-
-function showLoginError(msg) {
-    const el = document.getElementById('login-error');
-    el.textContent = msg;
-    el.style.display = 'block';
-    setTimeout(() => el.style.display = 'none', 3000);
+function renderUsageChart(data){
+  const ctx=document.getElementById('usageChart');
+  if(usageChart)usageChart.destroy();
+  usageChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Words',data:data.map(d=>d.words),backgroundColor:'#4F6BF6',borderRadius:4},{label:'Requests',data:data.map(d=>d.requests),backgroundColor:'#93C5FD',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
 }
+function setChartPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(p==='weekly'){const w=aggregateWeekly(dailyData);renderWordsChart(w)}else if(p==='monthly'){const m=aggregateMonthly(dailyData);renderWordsChart(m)}else{renderWordsChart(dailyData)}}
+function setBarPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(p==='weekly'){renderUsageChart(aggregateWeekly(dailyData))}else{renderUsageChart(dailyData)}}
+function aggregateWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,words:0,requests:0};w[wk].words+=d.words;w[wk].requests+=d.requests});return Object.values(w)}
+function aggregateMonthly(data){const m={};data.forEach(d=>{const mk=d.date.slice(0,7);if(!m[mk])m[mk]={date:mk,words:0,requests:0};m[mk].words+=d.words;m[mk].requests+=d.requests});return Object.values(m)}
 
-// Auto-login from localStorage
-window.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('ig_admin_pw');
-    if (saved) {
-        adminPassword = saved;
-        apiGet('/api/admin/stats').then(r => {
-            if (r.success) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('dashboard').style.display = 'block';
-                refreshAll();
-            }
-        }).catch(() => {});
-    }
-});
+// ─── License Keys ───
+async function loadKeys(){try{const r=await apiGet('/admin/keys');if(r.success){allKeys=r.keys;filterKeys()}}catch(e){toast('Failed to load keys','error')}}
+function filterKeys(){const s=document.getElementById('filter-search').value.toLowerCase(),st=document.getElementById('filter-status').value,ti=document.getElementById('filter-tier').value;
+let f=allKeys.filter(k=>{if(s&&!k.key.toLowerCase().includes(s)&&!(k.notes||'').toLowerCase().includes(s))return false;if(st&&k.status!==st)return false;if(ti&&k.tier!==ti)return false;return true});renderKeys(f)}
+function renderKeys(keys){const tb=document.getElementById('keys-tbody'),em=document.getElementById('keys-empty');if(!keys.length){tb.innerHTML='';em.style.display='block';return}em.style.display='none';
+tb.innerHTML=keys.map(k=>`<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${k.key}</code></td><td><span class="badge badge-${k.tier}">${k.tier_name}</span></td><td><span class="badge badge-${k.status}">${k.status}</span></td><td>${k.machine_count}/${k.max_machines}</td><td style="color:var(--text-sec)">${k.created_at_human}</td><td style="color:var(--text-sec)">${k.expires_at_human}</td><td style="color:var(--text-sec);max-width:120px;overflow:hidden;text-overflow:ellipsis">${k.notes||'—'}</td><td><button class="btn btn-info btn-sm" onclick="showDetails('${k.key}')">&#128269;</button> <button class="btn btn-warning btn-sm" onclick="showExtend('${k.key}')">&#9200;</button> ${k.status==='active'?`<button class="btn btn-danger btn-sm" onclick="doRevoke('${k.key}')">Revoke</button> `:k.status==='revoked'?`<button class="btn btn-success btn-sm" onclick="doUnrevoke('${k.key}')">&#9989;</button> `:''}<button class="btn btn-danger btn-sm" onclick="doDelete('${k.key}')">&#128465;</button></td></tr>`).join('')}
+async function generateKey(){const btn=document.getElementById('gen-btn');btn.innerHTML='<div class="spinner"></div> Generating...';btn.disabled=true;try{const r=await apiPost('/admin/generate',{tier:document.getElementById('gen-tier').value,duration_days:parseInt(document.getElementById('gen-duration').value),max_machines:parseInt(document.getElementById('gen-machines').value),notes:document.getElementById('gen-notes').value});if(r.success){document.getElementById('gen-key-text').textContent=r.key;document.getElementById('generated-key-result').style.display='block';toast('License key generated!','success');refreshAll()}else toast(r.error||'Failed','error')}catch(e){toast('Network error','error')}btn.innerHTML='&#128273; Generate Key';btn.disabled=false}
+function copyKey(){navigator.clipboard.writeText(document.getElementById('gen-key-text').textContent).then(()=>toast('Key copied!','success'))}
+function showDetails(key){const k=allKeys.find(x=>x.key===key);if(!k)return;
+const machines=(k.machines||[]).map(m=>`<div class="machine-item"><div><strong>${m.machine_name||'Unknown'}</strong><div style="color:var(--text-muted);font-family:monospace;font-size:11px">${m.hwid}</div><div style="color:var(--text-muted);font-size:11px">Activated: ${new Date(m.activated_at*1000).toLocaleString()}</div></div><button class="btn btn-danger btn-sm" onclick="doDeactivate('${key}','${m.hwid}')">Remove</button></div>`).join('')||'<p style="color:var(--text-muted)">No machines</p>';
+document.getElementById('modal-details-body').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px"><div><span style="color:var(--text-sec);font-size:12px">Key</span><br><code style="color:var(--primary);font-weight:600">${k.key}</code></div><div><span style="color:var(--text-sec);font-size:12px">Tier</span><br><span class="badge badge-${k.tier}">${k.tier_name}</span></div><div><span style="color:var(--text-sec);font-size:12px">Status</span><br><span class="badge badge-${k.status}">${k.status}</span></div><div><span style="color:var(--text-sec);font-size:12px">Machines</span><br>${k.machine_count}/${k.max_machines}</div><div><span style="color:var(--text-sec);font-size:12px">Created</span><br>${k.created_at_human}</div><div><span style="color:var(--text-sec);font-size:12px">Expires</span><br>${k.expires_at_human}</div></div>${k.notes?`<div style="margin-bottom:16px"><span style="color:var(--text-sec);font-size:12px">Notes</span><br>${k.notes}</div>`:''}<h4 style="font-size:14px;margin-bottom:10px">&#128187; Machines</h4>${machines}`;openModal('modal-details')}
+function showExtend(key){currentKey=key;document.getElementById('extend-key-display').textContent=key;document.getElementById('extend-days').value=30;openModal('modal-extend')}
+async function doExtend(){const btn=document.getElementById('extend-btn');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;try{const r=await apiPost('/admin/extend',{key:currentKey,days:parseInt(document.getElementById('extend-days').value)});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-extend');refreshAll()}}catch(e){toast('Network error','error')}btn.innerHTML='&#9200; Extend';btn.disabled=false}
+async function doRevoke(k){if(!confirm('Revoke '+k+'?'))return;const r=await apiPost('/admin/revoke',{key:k});toast(r.success?'Revoked':r.error,r.success?'success':'error');refreshAll()}
+async function doUnrevoke(k){const r=await apiPost('/admin/extend',{key:k,days:0});toast(r.success?'Re-activated':r.error,r.success?'success':'error');refreshAll()}
+async function doDelete(k){if(!confirm('DELETE '+k+'?\nThis cannot be undone!'))return;const r=await apiPost('/admin/delete',{key:k});toast(r.success?'Deleted':r.error,r.success?'success':'error');refreshAll()}
+async function doDeactivate(k,h){if(!confirm('Remove this machine?'))return;const r=await apiPost('/admin/deactivate',{key:k,hwid:h});if(r.success){toast('Machine removed','success');closeModal('modal-details');refreshAll()}else toast(r.error,'error')}
 
-// ==================== API HELPERS ====================
-async function apiGet(path) {
-    const res = await fetch(API_BASE + path, {
-        headers: { 'X-Admin-Password': adminPassword }
-    });
-    return res.json();
-}
+// ─── TTS Users ───
+async function loadTTSUsers(){try{const r=await apiGet('/admin/tts/users');if(!r.success)return;const users=r.users,tb=document.getElementById('tts-tbody'),em=document.getElementById('tts-empty');
+if(!users.length){tb.innerHTML='';em.style.display='block';return}em.style.display='none';
+tb.innerHTML=users.map(u=>{const pct=u.usage_percent;const color=pct>90?'var(--danger)':pct>70?'var(--warning)':'var(--primary)';
+return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${u.license_key}</code></td><td><span class="badge badge-${u.tier}">${u.tier_name}</span></td><td style="font-weight:600">${fmt(u.words_used)}</td><td>${fmt(u.words_limit)}</td><td style="min-width:120px"><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar"><div class="fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div><span style="font-size:12px;color:var(--text-sec);white-space:nowrap">${pct}%</span></div></td><td>${u.requests_count}</td><td style="color:var(--text-sec)">${u.last_request}</td><td><button class="btn btn-primary btn-sm" onclick="showTTSAction('add','${u.license_key}')">+Words</button> <button class="btn btn-warning btn-sm" onclick="showTTSAction('limit','${u.license_key}')">Limit</button> <button class="btn btn-info btn-sm" onclick="showTTSAction('reset','${u.license_key}')">Reset</button> <button class="btn btn-danger btn-sm" onclick="doTTSRemove('${u.license_key}')">&#128465;</button></td></tr>`}).join('')}catch(e){toast('Failed to load TTS users','error')}}
 
-async function apiPost(path, body) {
-    const res = await fetch(API_BASE + path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-        body: JSON.stringify(body)
-    });
-    return res.json();
-}
+async function setDefaultLimit(){const v=parseInt(document.getElementById('tts-default-limit').value);if(!v||v<100)return toast('Min 100 words','error');const r=await apiPost('/admin/tts/default-limit',{limit:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll()}
 
-// ==================== DATA ====================
-async function refreshAll() {
-    loadStats();
-    loadKeys();
-}
+function showTTSAction(type,key){currentKey=key;document.getElementById('tts-action-key').textContent=key;const body=document.getElementById('tts-action-body'),btns=document.getElementById('tts-action-btns'),title=document.getElementById('tts-action-title');
+if(type==='add'){title.textContent='Add Words';body.innerHTML='<div class="form-group"><label>Words to Add</label><input type="number" id="tts-add-val" value="1000" min="1"></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-primary" onclick="doTTSAddWords()">Add Words</button>'}
+else if(type==='limit'){title.textContent='Set Word Limit';body.innerHTML='<div class="form-group"><label>New Word Limit</label><input type="number" id="tts-limit-val" value="5000" min="100"></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-warning" onclick="doTTSSetLimit()">Set Limit</button>'}
+else if(type==='reset'){title.textContent='Reset Word Count';body.innerHTML='<p style="color:var(--text-sec)">This will reset the word count to 0 for this user.</p>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-info" onclick="doTTSReset()">Reset</button>'}
+openModal('modal-tts-action')}
+async function doTTSAddWords(){const v=parseInt(document.getElementById('tts-add-val').value);if(!v||v<1)return;const r=await apiPost('/admin/tts/add-words',{key:currentKey,words:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
+async function doTTSSetLimit(){const v=parseInt(document.getElementById('tts-limit-val').value);if(!v||v<100)return;const r=await apiPost('/admin/tts/set-limit',{key:currentKey,limit:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
+async function doTTSReset(){const r=await apiPost('/admin/tts/reset',{key:currentKey});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
+async function doTTSRemove(k){if(!confirm('Remove TTS data for '+k+'?'))return;const r=await apiPost('/admin/tts/remove',{key:k});toast(r.success?'Removed':r.error,r.success?'success':'error');refreshAll()}
 
-async function loadStats() {
-    try {
-        const r = await apiGet('/api/admin/stats');
-        if (r.success) {
-            const s = r.stats;
-            document.getElementById('s-total').textContent = s.total_keys;
-            document.getElementById('s-active').textContent = s.active;
-            document.getElementById('s-expired').textContent = s.expired;
-            document.getElementById('s-revoked').textContent = s.revoked;
-            document.getElementById('s-revenue').textContent = '$' + s.monthly_revenue;
-            document.getElementById('s-machines').textContent = s.total_machines;
-        }
-    } catch(e) { toast('Failed to load stats', 'error'); }
-}
-
-async function loadKeys() {
-    try {
-        const r = await apiGet('/api/admin/keys');
-        if (r.success) {
-            allKeys = r.keys;
-            filterKeys();
-        }
-    } catch(e) { toast('Failed to load keys', 'error'); }
-}
-
-function filterKeys() {
-    const search = document.getElementById('filter-search').value.toLowerCase();
-    const status = document.getElementById('filter-status').value;
-    const tier = document.getElementById('filter-tier').value;
-    
-    let filtered = allKeys.filter(k => {
-        if (search && !k.key.toLowerCase().includes(search) && !(k.notes||'').toLowerCase().includes(search)) return false;
-        if (status && k.status !== status) return false;
-        if (tier && k.tier !== tier) return false;
-        return true;
-    });
-    
-    renderKeys(filtered);
-}
-
-function renderKeys(keys) {
-    const tbody = document.getElementById('keys-tbody');
-    const empty = document.getElementById('keys-empty');
-    
-    if (keys.length === 0) {
-        tbody.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-    }
-    empty.style.display = 'none';
-    
-    tbody.innerHTML = keys.map(k => `
-        <tr>
-            <td><code style="color:var(--accent);font-size:12px">${k.key}</code></td>
-            <td><span class="badge badge-${k.tier}">${k.tier_name}</span></td>
-            <td><span class="badge badge-${k.status}">${k.status}</span></td>
-            <td>${k.machine_count}/${k.max_machines}</td>
-            <td style="color:var(--text-dim)">${k.created_at_human}</td>
-            <td style="color:var(--text-dim)">${k.expires_at_human}</td>
-            <td style="color:var(--text-dim);max-width:120px;overflow:hidden;text-overflow:ellipsis">${k.notes||'—'}</td>
-            <td>
-                <button class="btn btn-info btn-sm" onclick="showDetails('${k.key}')" title="Details">🔍</button>
-                <button class="btn btn-warning btn-sm" onclick="showExtend('${k.key}')" title="Extend">⏰</button>
-                ${k.status==='active'?`<button class="btn btn-danger btn-sm" onclick="doRevoke('${k.key}')" title="Revoke">🚫</button>`:''}
-                ${k.status==='revoked'?`<button class="btn btn-success btn-sm" onclick="doUnrevoke('${k.key}')" title="Re-activate">✅</button>`:''}
-                <button class="btn btn-danger btn-sm" onclick="doDelete('${k.key}')" title="Delete">🗑️</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// ==================== GENERATE ====================
-async function generateKey() {
-    const btn = document.getElementById('gen-btn');
-    btn.innerHTML = '<div class="spinner"></div> Generating...';
-    btn.disabled = true;
-    
-    try {
-        const r = await apiPost('/api/admin/generate', {
-            tier: document.getElementById('gen-tier').value,
-            duration_days: parseInt(document.getElementById('gen-duration').value),
-            max_machines: parseInt(document.getElementById('gen-machines').value),
-            notes: document.getElementById('gen-notes').value
-        });
-        
-        if (r.success) {
-            document.getElementById('gen-key-text').textContent = r.key;
-            document.getElementById('generated-key-result').style.display = 'block';
-            toast('License key generated!', 'success');
-            refreshAll();
-        } else {
-            toast(r.error || 'Failed to generate', 'error');
-        }
-    } catch(e) {
-        toast('Network error', 'error');
-    }
-    
-    btn.innerHTML = '🔑 Generate Key';
-    btn.disabled = false;
-}
-
-function copyKey() {
-    const key = document.getElementById('gen-key-text').textContent;
-    navigator.clipboard.writeText(key).then(() => toast('Key copied!', 'success'));
-}
-
-// ==================== ACTIONS ====================
-function showDetails(key) {
-    const k = allKeys.find(x => x.key === key);
-    if (!k) return;
-    
-    const machines = (k.machines || []).map(m => `
-        <div class="machine-item">
-            <div class="machine-info">
-                <div><strong>${m.machine_name || 'Unknown'}</strong></div>
-                <div class="machine-hwid">${m.hwid}</div>
-                <div style="color:var(--text-dim);font-size:11px">Activated: ${new Date(m.activated_at*1000).toLocaleString()}</div>
-            </div>
-            <button class="btn btn-danger btn-sm" onclick="doDeactivateMachine('${key}','${m.hwid}')">Remove</button>
-        </div>
-    `).join('') || '<p style="color:var(--text-dim);font-size:13px">No machines activated</p>';
-    
-    document.getElementById('modal-details-body').innerHTML = `
-        <div style="margin-bottom:16px">
-            <div style="font-size:12px;color:var(--text-dim)">License Key</div>
-            <div style="font-family:monospace;font-size:16px;color:var(--accent);margin:4px 0">${k.key}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
-            <div><span style="color:var(--text-dim);font-size:12px">Tier</span><br><span class="badge badge-${k.tier}">${k.tier_name}</span></div>
-            <div><span style="color:var(--text-dim);font-size:12px">Status</span><br><span class="badge badge-${k.status}">${k.status}</span></div>
-            <div><span style="color:var(--text-dim);font-size:12px">Created</span><br>${k.created_at_human}</div>
-            <div><span style="color:var(--text-dim);font-size:12px">Expires</span><br>${k.expires_at_human}</div>
-            <div><span style="color:var(--text-dim);font-size:12px">Machines</span><br>${k.machine_count}/${k.max_machines}</div>
-            <div><span style="color:var(--text-dim);font-size:12px">Last Validated</span><br>${k.last_validated ? new Date(k.last_validated*1000).toLocaleString() : 'Never'}</div>
-        </div>
-        ${k.notes ? `<div style="margin-bottom:16px"><span style="color:var(--text-dim);font-size:12px">Notes</span><br>${k.notes}</div>` : ''}
-        <h4 style="font-size:14px;margin-bottom:10px">💻 Activated Machines</h4>
-        ${machines}
-    `;
-    openModal('modal-details');
-}
-
-function showExtend(key) {
-    currentActionKey = key;
-    document.getElementById('extend-key-display').textContent = key;
-    document.getElementById('extend-days').value = 30;
-    openModal('modal-extend');
-}
-
-async function doExtend() {
-    const btn = document.getElementById('extend-btn');
-    btn.innerHTML = '<div class="spinner"></div>';
-    btn.disabled = true;
-    
-    try {
-        const r = await apiPost('/api/admin/extend', {
-            key: currentActionKey,
-            days: parseInt(document.getElementById('extend-days').value)
-        });
-        if (r.success) {
-            toast(r.message, 'success');
-            closeModal('modal-extend');
-            refreshAll();
-        } else {
-            toast(r.error, 'error');
-        }
-    } catch(e) { toast('Network error', 'error'); }
-    
-    btn.innerHTML = '⏰ Extend';
-    btn.disabled = false;
-}
-
-async function doRevoke(key) {
-    if (!confirm(`Revoke license ${key}?`)) return;
-    try {
-        const r = await apiPost('/api/admin/revoke', { key });
-        toast(r.success ? 'License revoked' : r.error, r.success ? 'success' : 'error');
-        refreshAll();
-    } catch(e) { toast('Network error', 'error'); }
-}
-
-async function doUnrevoke(key) {
-    try {
-        const r = await apiPost('/api/admin/extend', { key, days: 0 });
-        toast(r.success ? 'License re-activated' : r.error, r.success ? 'success' : 'error');
-        refreshAll();
-    } catch(e) { toast('Network error', 'error'); }
-}
-
-async function doDelete(key) {
-    if (!confirm(`PERMANENTLY DELETE license ${key}?\n\nThis cannot be undone!`)) return;
-    try {
-        const r = await apiPost('/api/admin/delete', { key });
-        toast(r.success ? 'License deleted' : r.error, r.success ? 'success' : 'error');
-        refreshAll();
-    } catch(e) { toast('Network error', 'error'); }
-}
-
-async function doDeactivateMachine(key, hwid) {
-    if (!confirm('Remove this machine from the license?')) return;
-    try {
-        const r = await apiPost('/api/admin/deactivate', { key, hwid });
-        if (r.success) {
-            toast('Machine removed', 'success');
-            closeModal('modal-details');
-            refreshAll();
-        } else {
-            toast(r.error, 'error');
-        }
-    } catch(e) { toast('Network error', 'error'); }
-}
-
-// ==================== UI HELPERS ====================
-function openModal(id) { document.getElementById(id).classList.add('show'); }
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-
-function toast(msg, type='success') {
-    const el = document.createElement('div');
-    el.className = `toast ${type}`;
-    el.textContent = msg;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
-}
-
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => {
-        if (e.target === overlay) closeModal(overlay.id);
-    });
-});
+// ─── Modal/Toast ───
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function toast(msg,type='success'){const el=document.createElement('div');el.className='toast '+type;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3000)}
+document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id)})});
 </script>
 </body>
 </html>
