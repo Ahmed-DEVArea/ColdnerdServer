@@ -3,7 +3,7 @@ ColdNerd License Server — Flask API for Vercel
 License management + TTS word-tracking via Hume.ai
 """
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, make_response
 from upstash_redis import Redis
 import os
 import json
@@ -786,17 +786,39 @@ def debug_env():
 
 # ==================== DASHBOARD ====================
 
+DASHBOARD_HTML = None
+
+def _load_dashboard():
+    global DASHBOARD_HTML
+    if DASHBOARD_HTML:
+        return DASHBOARD_HTML
+    # Try to load from file first
+    for d in [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "index.html"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "index.html"),
+        "/var/task/public/index.html",
+    ]:
+        if os.path.exists(d):
+            with open(d, "r", encoding="utf-8") as f:
+                DASHBOARD_HTML = f.read()
+            return DASHBOARD_HTML
+    return None
+
 @app.route("/", methods=["GET"])
 def serve_dashboard():
-    # Try multiple paths for Vercel serverless compatibility
-    candidates = [
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public"),
-        "/var/task/public",
-        "/var/task/user/public",
-    ]
-    for d in candidates:
-        html_path = os.path.join(d, "index.html")
-        if os.path.exists(html_path):
-            return send_from_directory(d, "index.html")
-    return "Dashboard not found. Checked: " + ", ".join(candidates), 404
+    html = _load_dashboard()
+    if html:
+        resp = make_response(html)
+        resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        return resp
+    # Fallback: fetch from GitHub raw
+    try:
+        gh = http_requests.get("https://raw.githubusercontent.com/Ahmed-DEVArea/ColdnerdServer/main/public/index.html", timeout=10)
+        if gh.status_code == 200:
+            DASHBOARD_HTML = gh.text
+            resp = make_response(DASHBOARD_HTML)
+            resp.headers["Content-Type"] = "text/html; charset=utf-8"
+            return resp
+    except Exception:
+        pass
+    return "Dashboard could not be loaded", 500
