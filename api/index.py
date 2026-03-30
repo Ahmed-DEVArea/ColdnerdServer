@@ -16,9 +16,9 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 
 # ==================== CONFIG ====================
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123")
-HUME_API_KEY = os.environ.get("HUME_API_KEY", "")
-HUME_SECRET_KEY = os.environ.get("HUME_SECRET_KEY", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123").strip()
+HUME_API_KEY = os.environ.get("HUME_API_KEY", "").strip()
+HUME_SECRET_KEY = os.environ.get("HUME_SECRET_KEY", "").strip()
 DEFAULT_WORD_LIMIT = int(os.environ.get("DEFAULT_WORD_LIMIT", "5000"))
 
 TIERS = {
