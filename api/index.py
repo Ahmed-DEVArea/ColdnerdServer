@@ -1,6 +1,6 @@
 """
 ColdNerd License Server — Flask API for Vercel
-License management + TTS word-tracking via Hume.ai
+License management + TTS character-tracking via Hume.ai
 """
 
 from flask import Flask, request, jsonify, make_response
@@ -19,7 +19,7 @@ app = Flask(__name__)
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123").strip()
 HUME_API_KEY = os.environ.get("HUME_API_KEY", "").strip()
 HUME_SECRET_KEY = os.environ.get("HUME_SECRET_KEY", "").strip()
-DEFAULT_WORD_LIMIT = int(os.environ.get("DEFAULT_WORD_LIMIT", "5000"))
+DEFAULT_CHAR_LIMIT = int(os.environ.get("DEFAULT_CHAR_LIMIT", os.environ.get("DEFAULT_WORD_LIMIT", "5000")))
 
 TIERS = {
     "trial": {
@@ -106,12 +106,25 @@ def save_tts(r, k, d):
 def get_tts_config(r):
     raw = r.get("tts:config")
     if raw:
-        return json.loads(raw) if isinstance(raw, str) else raw
-    return {"default_word_limit": DEFAULT_WORD_LIMIT}
+        cfg = json.loads(raw) if isinstance(raw, str) else raw
+        # Migrate old key name
+        if "default_word_limit" in cfg and "default_char_limit" not in cfg:
+            cfg["default_char_limit"] = cfg.pop("default_word_limit")
+        return cfg
+    return {"default_char_limit": DEFAULT_CHAR_LIMIT}
 
 
-def count_words(text):
-    return len(text.split())
+def _migrate_tts_usage(u: dict) -> dict:
+    """Migrate old word-based keys to char-based keys in TTS usage records."""
+    if "words_used" in u and "chars_used" not in u:
+        u["chars_used"] = u.pop("words_used")
+    if "words_limit" in u and "chars_limit" not in u:
+        u["chars_limit"] = u.pop("words_limit")
+    return u
+
+
+def count_chars(text):
+    return len(text)
 
 
 def ts_human(ts):
@@ -276,7 +289,7 @@ def create_trial():
 
 @app.route("/api/tts/generate", methods=["POST", "OPTIONS"])
 def tts_generate():
-    """Generate TTS via system Hume API — tracks word usage per license."""
+    """Generate TTS via system Hume API — tracks character usage per license."""
     d = request.get_json(silent=True)
     if not d:
         return cors({"success": False, "error": "Invalid request"}, 400)
@@ -300,23 +313,23 @@ def tts_generate():
     if hwid not in [m["hwid"] for m in lic.get("machines", [])]:
         return cors({"success": False, "error": "Machine not activated"}, 401)
 
-    word_count = count_words(text)
+    char_count = count_chars(text)
     cfg = get_tts_config(r)
-    default_limit = cfg.get("default_word_limit", DEFAULT_WORD_LIMIT)
+    default_limit = cfg.get("default_char_limit", DEFAULT_CHAR_LIMIT)
 
-    usage = get_tts(r, license_key) or {
-        "words_used": 0, "words_limit": default_limit,
+    usage = _migrate_tts_usage(get_tts(r, license_key) or {
+        "chars_used": 0, "chars_limit": default_limit,
         "requests_count": 0, "last_request": 0, "created_at": time.time(),
-    }
+    })
 
-    remaining = usage["words_limit"] - usage["words_used"]
-    if word_count > remaining:
+    remaining = usage["chars_limit"] - usage["chars_used"]
+    if char_count > remaining:
         return cors({
-            "success": False, "error": "word_limit_reached",
-            "message": f"Word limit reached! You have {max(0, remaining)} words remaining out of {usage['words_limit']}. Contact admin for more words.",
-            "words_used": usage["words_used"],
-            "words_limit": usage["words_limit"],
-            "words_remaining": max(0, remaining),
+            "success": False, "error": "char_limit_reached",
+            "message": f"Character limit reached! You have {max(0, remaining)} characters remaining out of {usage['chars_limit']}. Contact admin for more characters.",
+            "chars_used": usage["chars_used"],
+            "chars_limit": usage["chars_limit"],
+            "chars_remaining": max(0, remaining),
         }, 403)
 
     if not HUME_API_KEY:
@@ -357,7 +370,7 @@ def tts_generate():
             return cors({"success": False, "error": "No audio in TTS response"}, 502)
 
         # Update usage
-        usage["words_used"] += word_count
+        usage["chars_used"] += char_count
         usage["requests_count"] = usage.get("requests_count", 0) + 1
         usage["last_request"] = time.time()
         save_tts(r, license_key, usage)
@@ -366,17 +379,18 @@ def tts_generate():
         # Daily stats
         today = datetime.now().strftime("%Y-%m-%d")
         day_raw = r.get(f"tts:daily:{today}")
-        day = json.loads(day_raw) if isinstance(day_raw, str) else (day_raw or {"words": 0, "requests": 0})
-        day["words"] = day.get("words", 0) + word_count
+        day = json.loads(day_raw) if isinstance(day_raw, str) else (day_raw or {"chars": 0, "requests": 0})
+        day["chars"] = day.get("chars", day.get("words", 0)) + char_count
+        day.pop("words", None)
         day["requests"] = day.get("requests", 0) + 1
         r.set(f"tts:daily:{today}", json.dumps(day))
 
         return cors({
             "success": True, "audio_base64": audio_b64,
-            "words_used_now": word_count,
-            "words_used_total": usage["words_used"],
-            "words_limit": usage["words_limit"],
-            "words_remaining": usage["words_limit"] - usage["words_used"],
+            "chars_used_now": char_count,
+            "chars_used_total": usage["chars_used"],
+            "chars_limit": usage["chars_limit"],
+            "chars_remaining": usage["chars_limit"] - usage["chars_used"],
         })
 
     except http_requests.exceptions.Timeout:
@@ -387,7 +401,7 @@ def tts_generate():
 
 @app.route("/api/tts/check", methods=["POST", "OPTIONS"])
 def tts_check():
-    """Check TTS word balance for a license key."""
+    """Check TTS character balance for a license key."""
     d = request.get_json(silent=True)
     if not d:
         return cors({"success": False, "error": "Invalid request"}, 400)
@@ -402,17 +416,17 @@ def tts_check():
         return cors({"success": False, "error": "Invalid license key"}, 401)
 
     cfg = get_tts_config(r)
-    usage = get_tts(r, license_key) or {
-        "words_used": 0,
-        "words_limit": cfg.get("default_word_limit", DEFAULT_WORD_LIMIT),
+    usage = _migrate_tts_usage(get_tts(r, license_key) or {
+        "chars_used": 0,
+        "chars_limit": cfg.get("default_char_limit", DEFAULT_CHAR_LIMIT),
         "requests_count": 0,
-    }
+    })
 
     return cors({
         "success": True,
-        "words_used": usage["words_used"],
-        "words_limit": usage["words_limit"],
-        "words_remaining": usage["words_limit"] - usage["words_used"],
+        "chars_used": usage["chars_used"],
+        "chars_limit": usage["chars_limit"],
+        "chars_remaining": usage["chars_limit"] - usage["chars_used"],
         "requests_count": usage.get("requests_count", 0),
     })
 
@@ -523,28 +537,28 @@ def admin_stats():
 
         # TTS stats
         tts_users = r.smembers("tts:all_users") or set()
-        total_words = 0
+        total_chars = 0
         total_requests = 0
         for tk in tts_users:
-            u = get_tts(r, tk)
+            u = _migrate_tts_usage(get_tts(r, tk) or {})
             if u:
-                total_words += u.get("words_used", 0)
+                total_chars += u.get("chars_used", 0)
                 total_requests += u.get("requests_count", 0)
 
         s["tts_active_users"] = len(tts_users)
-        s["tts_total_words"] = total_words
+        s["tts_total_chars"] = total_chars
         s["tts_total_requests"] = total_requests
 
         cfg = get_tts_config(r)
-        s["tts_default_limit"] = cfg.get("default_word_limit", DEFAULT_WORD_LIMIT)
+        s["tts_default_limit"] = cfg.get("default_char_limit", DEFAULT_CHAR_LIMIT)
 
         # Daily TTS data (last 30 days)
         daily = []
         for i in range(30):
             day_str = (datetime.now() - timedelta(days=29 - i)).strftime("%Y-%m-%d")
             day_raw = r.get(f"tts:daily:{day_str}")
-            d = json.loads(day_raw) if isinstance(day_raw, str) else (day_raw or {"words": 0, "requests": 0})
-            daily.append({"date": day_str, "words": d.get("words", 0), "requests": d.get("requests", 0)})
+            d = json.loads(day_raw) if isinstance(day_raw, str) else (day_raw or {"chars": 0, "requests": 0})
+            daily.append({"date": day_str, "chars": d.get("chars", d.get("words", 0)), "requests": d.get("requests", 0)})
         s["tts_daily"] = daily
 
         return cors({"success": True, "stats": s})
@@ -626,7 +640,7 @@ def admin_deactivate_machine():
 
 @app.route("/api/admin/tts/users", methods=["GET", "OPTIONS"])
 def admin_tts_users():
-    """List all TTS users with their word usage."""
+    """List all TTS users with their character usage."""
     if not verify_admin(request):
         return cors({"success": False, "error": "Unauthorized"}, 401)
 
@@ -634,32 +648,33 @@ def admin_tts_users():
     tts_keys = r.smembers("tts:all_users") or set()
     users = []
     for tk in tts_keys:
-        u = get_tts(r, tk)
+        u = _migrate_tts_usage(get_tts(r, tk) or {})
         if not u:
             continue
         lic = get_lic(r, tk)
         tier = lic.get("tier", "unknown") if lic else "unknown"
         tier_name = TIERS.get(tier, {}).get("name", "Unknown") if lic else "Unknown"
-        wl = u.get("words_limit", DEFAULT_WORD_LIMIT)
-        wu = u.get("words_used", 0)
+        cl = u.get("chars_limit", DEFAULT_CHAR_LIMIT)
+        cu = u.get("chars_used", 0)
         users.append({
             "license_key": tk,
+            "name": u.get("name", ""),
             "tier": tier, "tier_name": tier_name,
-            "words_used": wu, "words_limit": wl,
-            "words_remaining": wl - wu,
-            "usage_percent": round((wu / wl * 100) if wl > 0 else 0, 1),
+            "chars_used": cu, "chars_limit": cl,
+            "chars_remaining": cl - cu,
+            "usage_percent": round((cu / cl * 100) if cl > 0 else 0, 1),
             "requests_count": u.get("requests_count", 0),
             "last_request": ts_human(u.get("last_request")),
             "created_at": ts_human(u.get("created_at")),
         })
 
-    users.sort(key=lambda x: x["words_used"], reverse=True)
+    users.sort(key=lambda x: x["chars_used"], reverse=True)
     return cors({"success": True, "users": users})
 
 
 @app.route("/api/admin/tts/set-limit", methods=["POST", "OPTIONS"])
 def admin_tts_set_limit():
-    """Set word limit for a specific license key."""
+    """Set character limit for a specific license key."""
     if not verify_admin(request):
         return cors({"success": False, "error": "Unauthorized"}, 401)
     d = request.get_json(silent=True) or {}
@@ -670,42 +685,42 @@ def admin_tts_set_limit():
 
     r = get_redis()
     cfg = get_tts_config(r)
-    usage = get_tts(r, key) or {
-        "words_used": 0, "words_limit": cfg["default_word_limit"],
+    usage = _migrate_tts_usage(get_tts(r, key) or {
+        "chars_used": 0, "chars_limit": cfg["default_char_limit"],
         "requests_count": 0, "last_request": 0, "created_at": time.time(),
-    }
-    usage["words_limit"] = limit
+    })
+    usage["chars_limit"] = limit
     save_tts(r, key, usage)
     r.sadd("tts:all_users", key)
-    return cors({"success": True, "message": f"Word limit set to {limit:,}"})
+    return cors({"success": True, "message": f"Character limit set to {limit:,}"})
 
 
-@app.route("/api/admin/tts/add-words", methods=["POST", "OPTIONS"])
-def admin_tts_add_words():
-    """Add more words to a user's limit."""
+@app.route("/api/admin/tts/add-chars", methods=["POST", "OPTIONS"])
+def admin_tts_add_chars():
+    """Add more characters to a user's limit."""
     if not verify_admin(request):
         return cors({"success": False, "error": "Unauthorized"}, 401)
     d = request.get_json(silent=True) or {}
     key = d.get("key", "").strip()
-    words = int(d.get("words", 0))
-    if not key or words <= 0:
-        return cors({"success": False, "error": "Missing key or invalid word count"}, 400)
+    chars = int(d.get("chars", d.get("words", 0)))
+    if not key or chars <= 0:
+        return cors({"success": False, "error": "Missing key or invalid character count"}, 400)
 
     r = get_redis()
     cfg = get_tts_config(r)
-    usage = get_tts(r, key) or {
-        "words_used": 0, "words_limit": cfg["default_word_limit"],
+    usage = _migrate_tts_usage(get_tts(r, key) or {
+        "chars_used": 0, "chars_limit": cfg["default_char_limit"],
         "requests_count": 0, "last_request": 0, "created_at": time.time(),
-    }
-    usage["words_limit"] += words
+    })
+    usage["chars_limit"] += chars
     save_tts(r, key, usage)
     r.sadd("tts:all_users", key)
-    return cors({"success": True, "message": f"Added {words:,} words. New limit: {usage['words_limit']:,}"})
+    return cors({"success": True, "message": f"Added {chars:,} characters. New limit: {usage['chars_limit']:,}"})
 
 
 @app.route("/api/admin/tts/reset", methods=["POST", "OPTIONS"])
 def admin_tts_reset():
-    """Reset word count for a user."""
+    """Reset character count for a user."""
     if not verify_admin(request):
         return cors({"success": False, "error": "Unauthorized"}, 401)
     d = request.get_json(silent=True) or {}
@@ -714,13 +729,13 @@ def admin_tts_reset():
         return cors({"success": False, "error": "Missing key"}, 400)
 
     r = get_redis()
-    usage = get_tts(r, key)
+    usage = _migrate_tts_usage(get_tts(r, key) or {})
     if not usage:
         return cors({"success": False, "error": "TTS user not found"})
-    usage["words_used"] = 0
+    usage["chars_used"] = 0
     usage["requests_count"] = 0
     save_tts(r, key, usage)
-    return cors({"success": True, "message": "Word count reset to 0"})
+    return cors({"success": True, "message": "Character count reset to 0"})
 
 
 @app.route("/api/admin/tts/remove", methods=["POST", "OPTIONS"])
@@ -739,9 +754,32 @@ def admin_tts_remove():
     return cors({"success": True, "message": "TTS user removed"})
 
 
+@app.route("/api/admin/tts/set-name", methods=["POST", "OPTIONS"])
+def admin_tts_set_name():
+    """Set a display name for a TTS user (for admin identification)."""
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    name = d.get("name", "").strip()
+    if not key:
+        return cors({"success": False, "error": "Missing key"}, 400)
+
+    r = get_redis()
+    cfg = get_tts_config(r)
+    usage = _migrate_tts_usage(get_tts(r, key) or {
+        "chars_used": 0, "chars_limit": cfg["default_char_limit"],
+        "requests_count": 0, "last_request": 0, "created_at": time.time(),
+    })
+    usage["name"] = name
+    save_tts(r, key, usage)
+    r.sadd("tts:all_users", key)
+    return cors({"success": True, "message": f"Name set to '{name}'" if name else "Name cleared"})
+
+
 @app.route("/api/admin/tts/default-limit", methods=["POST", "OPTIONS"])
 def admin_tts_default_limit():
-    """Set the global default word limit for new users."""
+    """Set the global default character limit for new users."""
     if not verify_admin(request):
         return cors({"success": False, "error": "Unauthorized"}, 401)
     d = request.get_json(silent=True) or {}
@@ -751,9 +789,10 @@ def admin_tts_default_limit():
 
     r = get_redis()
     cfg = get_tts_config(r)
-    cfg["default_word_limit"] = limit
+    cfg["default_char_limit"] = limit
+    cfg.pop("default_word_limit", None)
     r.set("tts:config", json.dumps(cfg))
-    return cors({"success": True, "message": f"Default word limit set to {limit:,}"})
+    return cors({"success": True, "message": f"Default character limit set to {limit:,}"})
 
 
 # ==================== UTILITY ====================

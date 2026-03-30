@@ -154,8 +154,8 @@ tr:hover td{background:#F9FAFB}
     <div class="stat-card">
       <div class="stat-icon blue">&#128172;</div>
       <div class="stat-info">
-        <div class="stat-label">TTS Words Generated</div>
-        <div class="stat-value" id="s-tts-words">&mdash;</div>
+        <div class="stat-label">TTS Characters Generated</div>
+        <div class="stat-value" id="s-tts-chars">&mdash;</div>
       </div>
     </div>
     <div class="stat-card">
@@ -184,7 +184,7 @@ tr:hover td{background:#F9FAFB}
   <!-- Charts Row -->
   <div class="charts-row">
     <div class="chart-card">
-      <h3>Words Generated <div class="chart-tabs"><button class="active" onclick="setChartPeriod('daily',this)">Daily</button><button onclick="setChartPeriod('weekly',this)">Weekly</button><button onclick="setChartPeriod('monthly',this)">Monthly</button></div></h3>
+      <h3>Characters Generated <div class="chart-tabs"><button class="active" onclick="setChartPeriod('daily',this)">Daily</button><button onclick="setChartPeriod('weekly',this)">Weekly</button><button onclick="setChartPeriod('monthly',this)">Monthly</button></div></h3>
       <div style="position:relative;height:220px"><canvas id="wordsChart"></canvas></div>
     </div>
     <div class="chart-card" style="position:relative">
@@ -243,12 +243,12 @@ tr:hover td{background:#F9FAFB}
     <div class="section">
       <h2>&#9881;&#65039; TTS Settings</h2>
       <div class="form-row">
-        <div class="form-group"><label>Default Word Limit (new users)</label><input type="number" id="tts-default-limit" value="5000" min="100"></div>
+        <div class="form-group"><label>Default Character Limit (new users)</label><input type="number" id="tts-default-limit" value="5000" min="100"></div>
         <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="setDefaultLimit()" style="margin-top:auto">Save Default Limit</button></div>
       </div>
       <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
         <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">TTS Active Users</div><div class="stat-value" id="s-tts-users">&mdash;</div></div></div>
-        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Words</div><div class="stat-value" id="s-tts-words2">&mdash;</div></div></div>
+        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Characters</div><div class="stat-value" id="s-tts-chars2">&mdash;</div></div></div>
         <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Requests</div><div class="stat-value" id="s-tts-reqs2">&mdash;</div></div></div>
         <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Default Limit</div><div class="stat-value" id="s-tts-deflim">&mdash;</div></div></div>
       </div>
@@ -256,7 +256,7 @@ tr:hover td{background:#F9FAFB}
     <div class="section">
       <h2>&#128100; TTS Users</h2>
       <div style="overflow-x:auto">
-        <table><thead><tr><th>License Key</th><th>Tier</th><th>Words Used</th><th>Limit</th><th>Usage</th><th>Requests</th><th>Last Request</th><th>Actions</th></tr></thead><tbody id="tts-tbody"></tbody></table>
+        <table><thead><tr><th>License Key</th><th>Name</th><th>Tier</th><th>Chars Used</th><th>Limit</th><th>Usage</th><th>Requests</th><th>Last Request</th><th>Actions</th></tr></thead><tbody id="tts-tbody"></tbody></table>
       </div>
       <p id="tts-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No TTS users yet.</p>
     </div>
@@ -270,7 +270,7 @@ tr:hover td{background:#F9FAFB}
 
 <script>
 let API='/api',adminPw='',allKeys=[],currentKey='';
-let wordsChart,tierChart,usageChart,dailyData=[];
+let charsChart,tierChart,usageChart,dailyData=[];
 
 // ─── Auth ───
 function doLogin(){const pw=document.getElementById('login-password').value.trim();if(!pw)return;adminPw=pw;apiGet('/admin/stats').then(r=>{if(r.success){document.getElementById('login-screen').style.display='none';document.getElementById('dashboard').style.display='block';localStorage.setItem('cn_admin_pw',pw);refreshAll()}else showLoginErr('Invalid password')}).catch(()=>showLoginErr('Connection error'))}
@@ -289,27 +289,27 @@ function switchTab(id,btn){document.querySelectorAll('.tab-content').forEach(t=>
 async function refreshAll(){loadStats();loadKeys();loadTTSUsers()}
 
 async function loadStats(){try{const r=await apiGet('/admin/stats');if(!r.success)return;const s=r.stats;
-document.getElementById('s-tts-words').textContent=fmt(s.tts_total_words||0);
+document.getElementById('s-tts-chars').textContent=fmt(s.tts_total_chars||0);
 document.getElementById('s-active').textContent=s.active;
 document.getElementById('s-tts-requests').textContent=fmt(s.tts_total_requests||0);
 document.getElementById('s-revenue').textContent='$'+fmt(s.monthly_revenue||0);
 document.getElementById('s-tts-users').textContent=s.tts_active_users||0;
-document.getElementById('s-tts-words2').textContent=fmt(s.tts_total_words||0);
+document.getElementById('s-tts-chars2').textContent=fmt(s.tts_total_chars||0);
 document.getElementById('s-tts-reqs2').textContent=fmt(s.tts_total_requests||0);
 document.getElementById('s-tts-deflim').textContent=fmt(s.tts_default_limit||5000);
 document.getElementById('tts-default-limit').value=s.tts_default_limit||5000;
 document.getElementById('donut-total').textContent=s.total_keys;
 dailyData=s.tts_daily||[];
-renderWordsChart(dailyData);renderTierChart(s);renderUsageChart(dailyData);
+renderCharsChart(dailyData);renderTierChart(s);renderUsageChart(dailyData);
 }catch(e){toast('Failed to load stats','error')}}
 
 function fmt(n){return n>=1000?n.toLocaleString():n}
 
 // ─── Charts ───
-function renderWordsChart(data){
+function renderCharsChart(data){
   const ctx=document.getElementById('wordsChart');
-  if(wordsChart)wordsChart.destroy();
-  wordsChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Words',data:data.map(d=>d.words),borderColor:'#4F6BF6',backgroundColor:'rgba(79,107,246,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
+  if(charsChart)charsChart.destroy();
+  charsChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Characters',data:data.map(d=>d.chars),borderColor:'#4F6BF6',backgroundColor:'rgba(79,107,246,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
 }
 function renderTierChart(s){
   const ctx=document.getElementById('tierChart');
@@ -319,14 +319,14 @@ function renderTierChart(s){
 function renderUsageChart(data){
   const ctx=document.getElementById('usageChart');
   if(usageChart)usageChart.destroy();
-  usageChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Words',data:data.map(d=>d.words),backgroundColor:'#4F6BF6',borderRadius:4},{label:'Requests',data:data.map(d=>d.requests),backgroundColor:'#93C5FD',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
+  usageChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Characters',data:data.map(d=>d.chars),backgroundColor:'#4F6BF6',borderRadius:4},{label:'Requests',data:data.map(d=>d.requests),backgroundColor:'#93C5FD',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
 }
 function setChartPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  if(p==='weekly'){const w=aggregateWeekly(dailyData);renderWordsChart(w)}else if(p==='monthly'){const m=aggregateMonthly(dailyData);renderWordsChart(m)}else{renderWordsChart(dailyData)}}
+  if(p==='weekly'){const w=aggregateWeekly(dailyData);renderCharsChart(w)}else if(p==='monthly'){const m=aggregateMonthly(dailyData);renderCharsChart(m)}else{renderCharsChart(dailyData)}}
 function setBarPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   if(p==='weekly'){renderUsageChart(aggregateWeekly(dailyData))}else{renderUsageChart(dailyData)}}
-function aggregateWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,words:0,requests:0};w[wk].words+=d.words;w[wk].requests+=d.requests});return Object.values(w)}
-function aggregateMonthly(data){const m={};data.forEach(d=>{const mk=d.date.slice(0,7);if(!m[mk])m[mk]={date:mk,words:0,requests:0};m[mk].words+=d.words;m[mk].requests+=d.requests});return Object.values(m)}
+function aggregateWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,chars:0,requests:0};w[wk].chars+=d.chars;w[wk].requests+=d.requests});return Object.values(w)}
+function aggregateMonthly(data){const m={};data.forEach(d=>{const mk=d.date.slice(0,7);if(!m[mk])m[mk]={date:mk,chars:0,requests:0};m[mk].chars+=d.chars;m[mk].requests+=d.requests});return Object.values(m)}
 
 // ─── License Keys ───
 async function loadKeys(){try{const r=await apiGet('/admin/keys');if(r.success){allKeys=r.keys;filterKeys()}}catch(e){toast('Failed to load keys','error')}}
@@ -349,18 +349,20 @@ async function doDeactivate(k,h){if(!confirm('Remove this machine?'))return;cons
 // ─── TTS Users ───
 async function loadTTSUsers(){try{const r=await apiGet('/admin/tts/users');if(!r.success)return;const users=r.users,tb=document.getElementById('tts-tbody'),em=document.getElementById('tts-empty');
 if(!users.length){tb.innerHTML='';em.style.display='block';return}em.style.display='none';
-tb.innerHTML=users.map(u=>{const pct=u.usage_percent;const color=pct>90?'var(--danger)':pct>70?'var(--warning)':'var(--primary)';
-return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${u.license_key}</code></td><td><span class="badge badge-${u.tier}">${u.tier_name}</span></td><td style="font-weight:600">${fmt(u.words_used)}</td><td>${fmt(u.words_limit)}</td><td style="min-width:120px"><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar"><div class="fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div><span style="font-size:12px;color:var(--text-sec);white-space:nowrap">${pct}%</span></div></td><td>${u.requests_count}</td><td style="color:var(--text-sec)">${u.last_request}</td><td><button class="btn btn-primary btn-sm" onclick="showTTSAction('add','${u.license_key}')">+Words</button> <button class="btn btn-warning btn-sm" onclick="showTTSAction('limit','${u.license_key}')">Limit</button> <button class="btn btn-info btn-sm" onclick="showTTSAction('reset','${u.license_key}')">Reset</button> <button class="btn btn-danger btn-sm" onclick="doTTSRemove('${u.license_key}')">&#128465;</button></td></tr>`}).join('')}catch(e){toast('Failed to load TTS users','error')}}
+tb.innerHTML=users.map(u=>{const pct=u.usage_percent;const color=pct>90?'var(--danger)':pct>70?'var(--warning)':'var(--primary)';const uname=u.name||'<span style="color:var(--text-muted);font-style:italic;cursor:pointer" onclick="showTTSAction(\'name\',\''+u.license_key+'\')">Set name</span>';
+return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${u.license_key}</code></td><td style="font-size:12px">${uname}</td><td><span class="badge badge-${u.tier}">${u.tier_name}</span></td><td style="font-weight:600">${fmt(u.chars_used)}</td><td>${fmt(u.chars_limit)}</td><td style="min-width:120px"><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar"><div class="fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div><span style="font-size:12px;color:var(--text-sec);white-space:nowrap">${pct}%</span></div></td><td>${u.requests_count}</td><td style="color:var(--text-sec)">${u.last_request}</td><td><button class="btn btn-primary btn-sm" onclick="showTTSAction('add','${u.license_key}')">+Chars</button> <button class="btn btn-warning btn-sm" onclick="showTTSAction('limit','${u.license_key}')">Limit</button> <button class="btn btn-success btn-sm" onclick="showTTSAction('name','${u.license_key}')">Name</button> <button class="btn btn-info btn-sm" onclick="showTTSAction('reset','${u.license_key}')">Reset</button> <button class="btn btn-danger btn-sm" onclick="doTTSRemove('${u.license_key}')">&#128465;</button></td></tr>`}).join('')}catch(e){toast('Failed to load TTS users','error')}}
 
-async function setDefaultLimit(){const v=parseInt(document.getElementById('tts-default-limit').value);if(!v||v<100)return toast('Min 100 words','error');const r=await apiPost('/admin/tts/default-limit',{limit:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll()}
+async function setDefaultLimit(){const v=parseInt(document.getElementById('tts-default-limit').value);if(!v||v<100)return toast('Min 100 characters','error');const r=await apiPost('/admin/tts/default-limit',{limit:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll()}
 
 function showTTSAction(type,key){currentKey=key;document.getElementById('tts-action-key').textContent=key;const body=document.getElementById('tts-action-body'),btns=document.getElementById('tts-action-btns'),title=document.getElementById('tts-action-title');
-if(type==='add'){title.textContent='Add Words';body.innerHTML='<div class="form-group"><label>Words to Add</label><input type="number" id="tts-add-val" value="1000" min="1"></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-primary" onclick="doTTSAddWords()">Add Words</button>'}
-else if(type==='limit'){title.textContent='Set Word Limit';body.innerHTML='<div class="form-group"><label>New Word Limit</label><input type="number" id="tts-limit-val" value="5000" min="100"></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-warning" onclick="doTTSSetLimit()">Set Limit</button>'}
-else if(type==='reset'){title.textContent='Reset Word Count';body.innerHTML='<p style="color:var(--text-sec)">This will reset the word count to 0 for this user.</p>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-info" onclick="doTTSReset()">Reset</button>'}
+if(type==='add'){title.textContent='Add Characters';body.innerHTML='<div class="form-group"><label>Characters to Add</label><input type="number" id="tts-add-val" value="1000" min="1"></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-primary" onclick="doTTSAddChars()">Add Characters</button>'}
+else if(type==='limit'){title.textContent='Set Character Limit';body.innerHTML='<div class="form-group"><label>New Character Limit</label><input type="number" id="tts-limit-val" value="5000" min="100"></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-warning" onclick="doTTSSetLimit()">Set Limit</button>'}
+else if(type==='name'){title.textContent='Set User Name';body.innerHTML='<div class="form-group"><label>Display Name</label><input type="text" id="tts-name-val" placeholder="e.g. John Doe, Client ABC..."></div>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-success" onclick="doTTSSetName()">Save Name</button>'}
+else if(type==='reset'){title.textContent='Reset Character Count';body.innerHTML='<p style="color:var(--text-sec)">This will reset the character count to 0 for this user.</p>';btns.innerHTML='<button class="btn btn-outline" onclick="closeModal(\'modal-tts-action\')">Cancel</button><button class="btn btn-info" onclick="doTTSReset()">Reset</button>'}
 openModal('modal-tts-action')}
-async function doTTSAddWords(){const v=parseInt(document.getElementById('tts-add-val').value);if(!v||v<1)return;const r=await apiPost('/admin/tts/add-words',{key:currentKey,words:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
+async function doTTSAddChars(){const v=parseInt(document.getElementById('tts-add-val').value);if(!v||v<1)return;const r=await apiPost('/admin/tts/add-chars',{key:currentKey,chars:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
 async function doTTSSetLimit(){const v=parseInt(document.getElementById('tts-limit-val').value);if(!v||v<100)return;const r=await apiPost('/admin/tts/set-limit',{key:currentKey,limit:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
+async function doTTSSetName(){const v=(document.getElementById('tts-name-val').value||'').trim();const r=await apiPost('/admin/tts/set-name',{key:currentKey,name:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
 async function doTTSReset(){const r=await apiPost('/admin/tts/reset',{key:currentKey});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
 async function doTTSRemove(k){if(!confirm('Remove TTS data for '+k+'?'))return;const r=await apiPost('/admin/tts/remove',{key:k});toast(r.success?'Removed':r.error,r.success?'success':'error');refreshAll()}
 
