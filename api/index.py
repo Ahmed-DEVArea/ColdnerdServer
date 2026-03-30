@@ -78,6 +78,8 @@ def cors(data, status=200):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Password"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE"
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
     return resp
 
 
@@ -826,12 +828,11 @@ def debug_env():
 # ==================== DASHBOARD ====================
 
 DASHBOARD_HTML = None
+FAVICON_DATA = None
 
 def _load_dashboard():
     global DASHBOARD_HTML
-    if DASHBOARD_HTML:
-        return DASHBOARD_HTML
-    # Try to load from file first
+    # Always reload to avoid stale cache on Vercel
     for d in [
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "index.html"),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "index.html"),
@@ -841,7 +842,44 @@ def _load_dashboard():
             with open(d, "r", encoding="utf-8") as f:
                 DASHBOARD_HTML = f.read()
             return DASHBOARD_HTML
+    return DASHBOARD_HTML  # return cached if file not found
+
+
+def _load_favicon():
+    global FAVICON_DATA
+    if FAVICON_DATA:
+        return FAVICON_DATA
+    for d in [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "favicon.png"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "favicon.png"),
+        "/var/task/public/favicon.png",
+    ]:
+        if os.path.exists(d):
+            with open(d, "rb") as f:
+                FAVICON_DATA = f.read()
+            return FAVICON_DATA
+    # Fallback: fetch from GitHub
+    try:
+        gh = http_requests.get("https://raw.githubusercontent.com/Ahmed-DEVArea/ColdnerdServer/main/public/favicon.png", timeout=10)
+        if gh.status_code == 200:
+            FAVICON_DATA = gh.content
+            return FAVICON_DATA
+    except Exception:
+        pass
     return None
+
+
+@app.route("/favicon.ico", methods=["GET"])
+@app.route("/favicon.png", methods=["GET"])
+def serve_favicon():
+    data = _load_favicon()
+    if data:
+        resp = make_response(data)
+        resp.headers["Content-Type"] = "image/png"
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+    return "", 404
+
 
 @app.route("/", methods=["GET"])
 def serve_dashboard():
@@ -849,6 +887,7 @@ def serve_dashboard():
     if html:
         resp = make_response(html)
         resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return resp
     # Fallback: fetch from GitHub raw
     try:
@@ -857,6 +896,7 @@ def serve_dashboard():
             DASHBOARD_HTML = gh.text
             resp = make_response(DASHBOARD_HTML)
             resp.headers["Content-Type"] = "text/html; charset=utf-8"
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             return resp
     except Exception:
         pass
