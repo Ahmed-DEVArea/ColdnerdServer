@@ -20,6 +20,7 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123").strip()
 HUME_API_KEY = os.environ.get("HUME_API_KEY", "").strip()
 HUME_SECRET_KEY = os.environ.get("HUME_SECRET_KEY", "").strip()
 DEFAULT_CHAR_LIMIT = int(os.environ.get("DEFAULT_CHAR_LIMIT", os.environ.get("DEFAULT_WORD_LIMIT", "5000")))
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 
 TIERS = {
     "trial": {
@@ -754,6 +755,167 @@ def admin_tts_remove():
     r.delete(f"tts:{key}")
     r.srem("tts:all_users", key)
     return cors({"success": True, "message": "TTS user removed"})
+
+
+# ==================== EMAIL HELPER ====================
+
+def send_license_email(to_email, license_key, tier_name, buyer_name=""):
+    """Send license key email via Resend API."""
+    if not RESEND_API_KEY:
+        print(f"[EMAIL] RESEND_API_KEY not set. Key={license_key} for {to_email}")
+        return False
+
+    html_content = f"""
+    <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #0d0d0d; font-size: 28px; margin: 0;">
+                <span style="font-weight: 800;">Cold</span><span style="font-weight: 400;">Nerd</span>
+            </h1>
+        </div>
+        <div style="background: linear-gradient(135deg, #2a6ff3 0%, #1f5ccf 100%); border-radius: 16px; padding: 32px; color: white; text-align: center; margin-bottom: 24px;">
+            <h2 style="margin: 0 0 8px 0; font-size: 22px;">Your License Key</h2>
+            <p style="margin: 0 0 20px 0; opacity: 0.8; font-size: 14px;">Thank you for your purchase{f', {buyer_name}' if buyer_name else ''}!</p>
+            <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 20px; letter-spacing: 2px; font-weight: bold;">
+                {license_key}
+            </div>
+        </div>
+        <div style="background: #f8f9fa; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+            <h3 style="margin: 0 0 12px 0; color: #0d0d0d; font-size: 16px;">Plan: {tier_name}</h3>
+            <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
+                Open the ColdNerd desktop app, go to <b>Settings → License</b>, and paste your key to activate.
+            </p>
+        </div>
+        <p style="text-align: center; color: #999; font-size: 12px;">
+            Need help? Contact us at coldnerdai@gmail.com
+        </p>
+    </div>
+    """
+
+    try:
+        resp = http_requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": "ColdNerd <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": f"Your ColdNerd {tier_name} License Key",
+                "html": html_content,
+            },
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            print(f"[EMAIL] Sent license key to {to_email}")
+            return True
+        else:
+            print(f"[EMAIL] Failed: {resp.status_code} — {resp.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"[EMAIL] Error: {str(e)}")
+        return False
+
+
+# ==================== WHOP WEBHOOK ====================
+
+def map_whop_to_tier(product_title="", amount=0):
+    """Map Whop product/amount to license tier."""
+    title_lower = (product_title or "").lower()
+    if "agency" in title_lower or "ultimate" in title_lower or amount >= 9900:
+        return "agency"
+    elif "pro" in title_lower or amount >= 2900:
+        return "pro"
+    else:
+        return "basic"
+
+
+@app.route("/api/webhooks/whop", methods=["POST", "OPTIONS"])
+def whop_webhook():
+    """Handle Whop webhook events (membership_activated, payment_created)."""
+    if request.method == "OPTIONS":
+        return cors({"ok": True})
+
+    try:
+        body = request.get_json(silent=True)
+        if not body:
+            return cors({"error": "Invalid JSON"}, 400)
+
+        event_type = body.get("type", "")
+        webhook_id = body.get("id", "")
+        data = body.get("data", {})
+
+        # Extract user info
+        user_info = data.get("user", {})
+        email = user_info.get("email", "")
+        buyer_name = user_info.get("name", "")
+
+        # Extract product info
+        product = data.get("product", {})
+        product_title = product.get("title", "")
+
+        # Get payment amount if available (in dollars from Whop)
+        amount = 0
+        total = data.get("total")
+        if total is not None:
+            amount = int(float(total) * 100)  # Convert to cents
+
+        print(f"[WHOP] type={event_type} email={email} product={product_title} amount={amount} wh_id={webhook_id}")
+
+        r = get_redis()
+
+        # Deduplicate: skip if already processed this webhook ID
+        if webhook_id:
+            if r.get(f"webhook_processed:{webhook_id}"):
+                print(f"[WHOP] Already processed webhook {webhook_id}")
+                return cors({"received": True, "action": "already_processed"})
+
+        if not email:
+            print("[WHOP] No email found in webhook data")
+            return cors({"error": "No email in webhook data"}, 400)
+
+        # Map to tier
+        tier = map_whop_to_tier(product_title, amount)
+        ti = TIERS.get(tier, TIERS["basic"])
+
+        # Generate license key
+        key = generate_key()
+        expires_at = time.time() + (ti["duration_days"] * 86400)
+
+        lic = {
+            "key": key,
+            "tier": tier,
+            "created_at": time.time(),
+            "expires_at": expires_at,
+            "revoked": False,
+            "machines": [],
+            "max_machines_override": None,
+            "last_validated": None,
+            "notes": f"Whop auto — {email} — {product_title}",
+        }
+
+        save_lic(r, key, lic)
+        r.sadd("all_license_keys", key)
+
+        # Mark webhook as processed
+        if webhook_id:
+            r.set(f"webhook_processed:{webhook_id}", "1")
+
+        print(f"[WHOP] Generated key={key} tier={tier} for {email}")
+
+        # Send email with license key
+        email_sent = send_license_email(email, key, ti["name"], buyer_name)
+
+        return cors({
+            "success": True,
+            "license_key": key,
+            "tier": tier,
+            "email_sent": email_sent,
+        })
+
+    except Exception as e:
+        print(f"[WHOP] Error: {str(e)}")
+        return cors({"error": f"Webhook processing failed: {str(e)}"}, 500)
 
 
 @app.route("/api/admin/tts/set-name", methods=["POST", "OPTIONS"])
