@@ -763,7 +763,7 @@ def send_license_email(to_email, license_key, tier_name, buyer_name=""):
     """Send license key email via Resend API."""
     if not RESEND_API_KEY:
         print(f"[EMAIL] RESEND_API_KEY not set. Key={license_key} for {to_email}")
-        return False
+        return {"sent": False, "error": "RESEND_API_KEY not set"}
 
     html_content = f"""
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -808,13 +808,14 @@ def send_license_email(to_email, license_key, tier_name, buyer_name=""):
         )
         if resp.status_code in (200, 201):
             print(f"[EMAIL] Sent license key to {to_email}")
-            return True
+            return {"sent": True, "error": None}
         else:
-            print(f"[EMAIL] Failed: {resp.status_code} — {resp.text[:200]}")
-            return False
+            err = f"{resp.status_code} — {resp.text[:300]}"
+            print(f"[EMAIL] Failed: {err}")
+            return {"sent": False, "error": err}
     except Exception as e:
         print(f"[EMAIL] Error: {str(e)}")
-        return False
+        return {"sent": False, "error": str(e)}
 
 
 # ==================== WHOP WEBHOOK ====================
@@ -914,13 +915,14 @@ def whop_webhook():
         print(f"[WHOP] Generated key={key} tier={tier} for {email}")
 
         # Send email with license key
-        email_sent = send_license_email(email, key, ti["name"], buyer_name)
+        email_result = send_license_email(email, key, ti["name"], buyer_name)
 
         return cors({
             "success": True,
             "license_key": key,
             "tier": tier,
-            "email_sent": email_sent,
+            "email_sent": email_result.get("sent", False) if isinstance(email_result, dict) else bool(email_result),
+            "email_error": email_result.get("error") if isinstance(email_result, dict) else None,
         })
 
     except Exception as e:
