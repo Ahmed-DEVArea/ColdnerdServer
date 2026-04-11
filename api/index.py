@@ -830,6 +830,16 @@ def map_whop_to_tier(product_title="", amount=0):
         return "basic"
 
 
+@app.route("/api/debug/email-check", methods=["GET", "OPTIONS"])
+def debug_email_check():
+    """Temporary debug — check if RESEND_API_KEY is loaded."""
+    if request.method == "OPTIONS":
+        return cors({"ok": True})
+    has_key = bool(RESEND_API_KEY)
+    key_prefix = RESEND_API_KEY[:8] + "..." if has_key else "(empty)"
+    return cors({"resend_key_loaded": has_key, "key_prefix": key_prefix})
+
+
 @app.route("/api/webhooks/whop", methods=["POST", "OPTIONS"])
 def whop_webhook():
     """Handle Whop webhook events (membership_activated, payment_created)."""
