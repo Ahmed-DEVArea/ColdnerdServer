@@ -799,7 +799,7 @@ def send_license_email(to_email, license_key, tier_name, buyer_name=""):
                 "Content-Type": "application/json",
             },
             json={
-                "from": "ColdNerd <onboarding@resend.dev>",
+                "from": "ColdNerd <noreply@coldnerd.com>",
                 "to": [to_email],
                 "subject": f"Your ColdNerd {tier_name} License Key",
                 "html": html_content,
