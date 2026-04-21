@@ -1055,6 +1055,72 @@ def serve_favicon():
     return "", 404
 
 
+@app.route("/api/contact", methods=["POST", "OPTIONS"])
+def contact_form():
+    """Handle contact form submissions — sends email to coldnerdai@gmail.com via Resend."""
+    if request.method == "OPTIONS":
+        return cors({"ok": True})
+
+    d = request.get_json(silent=True)
+    if not d:
+        return cors({"success": False, "error": "Invalid JSON"}, 400)
+
+    name = (d.get("name") or "").strip()
+    email = (d.get("email") or "").strip()
+    queries = (d.get("queries") or "").strip()
+
+    if not name or not email or not queries:
+        return cors({"success": False, "error": "Missing required fields"}, 400)
+
+    if not RESEND_API_KEY:
+        return cors({"success": False, "error": "Email service not configured"}, 503)
+
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #2a6ff3; margin-bottom: 20px;">New Contact Form Submission</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 10px 0; font-weight: bold; color: #333; width: 100px;">Name:</td>
+                <td style="padding: 10px 0; color: #555;">{name}</td>
+            </tr>
+            <tr style="border-top: 1px solid #eee;">
+                <td style="padding: 10px 0; font-weight: bold; color: #333;">Email:</td>
+                <td style="padding: 10px 0; color: #555;"><a href="mailto:{email}">{email}</a></td>
+            </tr>
+            <tr style="border-top: 1px solid #eee;">
+                <td style="padding: 10px 0; font-weight: bold; color: #333; vertical-align: top;">Query:</td>
+                <td style="padding: 10px 0; color: #555; white-space: pre-wrap;">{queries}</td>
+            </tr>
+        </table>
+    </div>
+    """
+
+    try:
+        resp = http_requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": "ColdNerd Contact <onboarding@resend.dev>",
+                "to": ["coldnerdai@gmail.com"],
+                "reply_to": email,
+                "subject": f"Contact: {name}",
+                "html": html_body,
+            },
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            return cors({"success": True})
+        else:
+            print(f"[CONTACT] Resend error: {resp.status_code} — {resp.text[:200]}")
+            return cors({"success": False, "error": "Failed to send email"}, 500)
+    except Exception as e:
+        print(f"[CONTACT] Error: {str(e)}")
+        return cors({"success": False, "error": "Email service error"}, 500)
+
+
 @app.route("/", methods=["GET"])
 def serve_dashboard():
     html = _load_dashboard()
