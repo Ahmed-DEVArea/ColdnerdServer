@@ -26,7 +26,7 @@ TIERS = {
     "trial": {
         "name": "Trial", "max_machines": 1,
         "features": ["home_feed_warmup"],
-        "max_profiles": 1, "duration_days": 3, "price": 0,
+        "max_profiles": 1, "duration_days": 14, "price": 0,
     },
     "basic": {
         "name": "Basic", "max_machines": 1,

@@ -84,7 +84,7 @@ LICENSE_SERVER_URL = "https://your-project.vercel.app"
 
 | Tier | Price | Features | Max Machines | Max Profiles |
 |---|---|---|---|---|
-| **Trial** | Free (3 days) | Home Feed Warmup | 1 | 1 |
+| **Trial** | Free (14 days) | Home Feed Warmup | 1 | 1 |
 | **Basic** | $29/mo | Home Feed + DM Outreach | 1 | 1 |
 | **Pro** | $49/mo | All Features | 3 | 3 |
 | **Agency** | $99/mo | All Features + Unlimited Profiles | 10 | Unlimited |
