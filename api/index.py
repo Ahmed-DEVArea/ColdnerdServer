@@ -28,27 +28,59 @@ TIERS = {
         "features": ["home_feed_warmup"],
         "max_profiles": 1, "duration_days": 14, "price": 0,
     },
-    "basic": {
-        "name": "Basic", "max_machines": 1,
-        "features": ["home_feed_warmup", "dm_outreach"],
-        "max_profiles": 1, "duration_days": 30, "price": 29,
-    },
-    "pro": {
-        "name": "Pro", "max_machines": 3,
-        "features": [
-            "home_feed_warmup", "reels_warmup", "story_warmup",
-            "keyword_search", "profile_visit", "dm_outreach", "voice_notes",
-        ],
-        "max_profiles": 3, "duration_days": 30, "price": 49,
-    },
-    "agency": {
-        "name": "Agency", "max_machines": 10,
+    # ── Live plans (Whop product mapping) ───────────────────────────
+    "starter": {
+        "name": "Starter", "max_machines": 1,
         "features": [
             "home_feed_warmup", "reels_warmup", "story_warmup",
             "keyword_search", "profile_visit", "dm_outreach",
-            "voice_notes", "unlimited_profiles",
         ],
-        "max_profiles": 999, "duration_days": 30, "price": 99,
+        "max_profiles": 6, "duration_days": 30, "price": 27,
+    },
+    "growth": {
+        "name": "Growth", "max_machines": 3,
+        "features": [
+            "home_feed_warmup", "reels_warmup", "story_warmup",
+            "keyword_search", "profile_visit", "dm_outreach",
+            "unlimited_dms",
+        ],
+        "max_profiles": 15, "duration_days": 30, "price": 67,
+    },
+    "agency_pro": {
+        "name": "Agency Pro", "max_machines": 10,
+        "features": [
+            "home_feed_warmup", "reels_warmup", "story_warmup",
+            "keyword_search", "profile_visit", "dm_outreach",
+            "unlimited_dms", "voice_notes", "unlimited_profiles",
+        ],
+        "max_profiles": 9999, "duration_days": 30, "price": 197,
+    },
+    # ── Legacy aliases (kept so existing keys still validate) ───────
+    "basic": {
+        "name": "Starter", "max_machines": 1,
+        "features": [
+            "home_feed_warmup", "reels_warmup", "story_warmup",
+            "keyword_search", "profile_visit", "dm_outreach",
+        ],
+        "max_profiles": 6, "duration_days": 30, "price": 27,
+    },
+    "pro": {
+        "name": "Growth", "max_machines": 3,
+        "features": [
+            "home_feed_warmup", "reels_warmup", "story_warmup",
+            "keyword_search", "profile_visit", "dm_outreach",
+            "unlimited_dms",
+        ],
+        "max_profiles": 15, "duration_days": 30, "price": 67,
+    },
+    "agency": {
+        "name": "Agency Pro", "max_machines": 10,
+        "features": [
+            "home_feed_warmup", "reels_warmup", "story_warmup",
+            "keyword_search", "profile_visit", "dm_outreach",
+            "unlimited_dms", "voice_notes", "unlimited_profiles",
+        ],
+        "max_profiles": 9999, "duration_days": 30, "price": 197,
     },
 }
 
@@ -821,14 +853,37 @@ def send_license_email(to_email, license_key, tier_name, buyer_name=""):
 # ==================== WHOP WEBHOOK ====================
 
 def map_whop_to_tier(product_title="", amount=0):
-    """Map Whop product/amount to license tier."""
+    """Map Whop product title / payment amount to license tier.
+
+    Plans (configured on whop.com/coldnerd):
+      • Starter      — $27/mo  (yearly: ~$22/mo)   → max 6 profiles
+      • Growth       — $67/mo  (yearly: ~$54/mo)   → max 15 profiles
+      • Agency Pro   — $197/mo (yearly: ~$158/mo)  → unlimited + voice notes
+
+    Amount is in cents. Yearly is 12× monthly with 20% off, so we also
+    accept the matching yearly totals.
+    """
     title_lower = (product_title or "").lower()
-    if "agency" in title_lower or "ultimate" in title_lower or amount >= 9900:
-        return "agency"
-    elif "pro" in title_lower or amount >= 2900:
-        return "pro"
-    else:
-        return "basic"
+
+    # ── Title-based mapping (most reliable) ─────────────────────────
+    if "agency" in title_lower:
+        return "agency_pro"
+    if "growth" in title_lower:
+        return "growth"
+    if "starter" in title_lower or "basic" in title_lower:
+        return "starter"
+
+    # ── Amount-based fallback (cents) ───────────────────────────────
+    # Approx yearly totals: Starter $259, Growth $643, Agency $1891
+    if amount >= 15000:    # >= $150 → Agency Pro (covers monthly $197 + yearly)
+        return "agency_pro"
+    if amount >= 5000:     # >= $50  → Growth
+        return "growth"
+    if amount >= 2000:     # >= $20  → Starter
+        return "starter"
+
+    # Default fallback
+    return "starter"
 
 
 @app.route("/api/debug/email-check", methods=["GET", "OPTIONS"])
@@ -887,11 +942,33 @@ def whop_webhook():
 
         # Map to tier
         tier = map_whop_to_tier(product_title, amount)
-        ti = TIERS.get(tier, TIERS["basic"])
+        ti = TIERS.get(tier, TIERS["starter"])
+
+        # Detect annual billing — Whop may pass plan/billing_period or
+        # the amount itself will be ~12× the monthly price (with 20% off).
+        plan = data.get("plan", {}) if isinstance(data.get("plan"), dict) else {}
+        billing_period = (
+            plan.get("billing_period")
+            or plan.get("renewal_period")
+            or data.get("billing_period")
+            or data.get("plan_type")
+            or ""
+        )
+        is_annual = False
+        bp = str(billing_period).lower()
+        if "year" in bp or "annual" in bp or bp in ("365", "12"):
+            is_annual = True
+        else:
+            # Amount-based fallback per tier (cents)
+            monthly_cents = {"starter": 2700, "growth": 6700, "agency_pro": 19700}.get(tier, 0)
+            if monthly_cents and amount >= monthly_cents * 6:
+                is_annual = True
+
+        duration_days = 365 if is_annual else ti["duration_days"]
 
         # Generate license key
         key = generate_key()
-        expires_at = time.time() + (ti["duration_days"] * 86400)
+        expires_at = time.time() + (duration_days * 86400)
 
         lic = {
             "key": key,
