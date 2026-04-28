@@ -211,7 +211,11 @@ def validate_license():
     save_lic(r, key, lic)
 
     cfg = get_tts_config(r)
-    usage = get_tts(r, key) or {"words_used": 0, "words_limit": cfg["default_word_limit"]}
+    char_limit = cfg.get("default_char_limit") or cfg.get("default_word_limit") or 0
+    raw_usage = get_tts(r, key) or {}
+    usage = _migrate_tts_usage(raw_usage) if raw_usage else {
+        "chars_used": 0, "chars_limit": char_limit,
+    }
 
     return cors({
         "valid": True,
@@ -221,8 +225,8 @@ def validate_license():
         "max_profiles": ti["max_profiles"],
         "expires_at": expires_at,
         "expires_at_human": ts_human(expires_at),
-        "tts_words_used": usage.get("words_used", 0),
-        "tts_words_limit": usage.get("words_limit", cfg["default_word_limit"]),
+        "tts_words_used": usage.get("chars_used", 0),
+        "tts_words_limit": usage.get("chars_limit", char_limit),
     })
 
 
