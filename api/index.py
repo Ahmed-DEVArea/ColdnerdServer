@@ -27,6 +27,8 @@ TIERS = {
         "name": "Trial", "max_machines": 1,
         "features": ["home_feed_warmup"],
         "max_profiles": 1, "duration_days": 14, "price": 0,
+        "dm_limit_monthly": 500, "dm_limit_daily_per_account": 30,
+        "show_dm_warning": True,
     },
     # ── Live plans (Whop product mapping) ───────────────────────────
     "starter": {
@@ -35,7 +37,9 @@ TIERS = {
             "home_feed_warmup", "reels_warmup", "story_warmup",
             "keyword_search", "profile_visit", "dm_outreach",
         ],
-        "max_profiles": 6, "duration_days": 30, "price": 27,
+        "max_profiles": 3, "duration_days": 30, "price": 27,
+        "dm_limit_monthly": 3000, "dm_limit_daily_per_account": 0,
+        "show_dm_warning": False,
     },
     "growth": {
         "name": "Growth", "max_machines": 3,
@@ -45,6 +49,8 @@ TIERS = {
             "unlimited_dms",
         ],
         "max_profiles": 15, "duration_days": 30, "price": 67,
+        "dm_limit_monthly": 0, "dm_limit_daily_per_account": 0,
+        "show_dm_warning": False,
     },
     "agency_pro": {
         "name": "Agency Pro", "max_machines": 10,
@@ -54,6 +60,8 @@ TIERS = {
             "unlimited_dms", "voice_notes", "unlimited_profiles",
         ],
         "max_profiles": 9999, "duration_days": 30, "price": 197,
+        "dm_limit_monthly": 0, "dm_limit_daily_per_account": 0,
+        "show_dm_warning": False,
     },
     # ── Legacy aliases (kept so existing keys still validate) ───────
     "basic": {
@@ -62,7 +70,9 @@ TIERS = {
             "home_feed_warmup", "reels_warmup", "story_warmup",
             "keyword_search", "profile_visit", "dm_outreach",
         ],
-        "max_profiles": 6, "duration_days": 30, "price": 27,
+        "max_profiles": 3, "duration_days": 30, "price": 27,
+        "dm_limit_monthly": 3000, "dm_limit_daily_per_account": 0,
+        "show_dm_warning": False,
     },
     "pro": {
         "name": "Growth", "max_machines": 3,
@@ -72,6 +82,8 @@ TIERS = {
             "unlimited_dms",
         ],
         "max_profiles": 15, "duration_days": 30, "price": 67,
+        "dm_limit_monthly": 0, "dm_limit_daily_per_account": 0,
+        "show_dm_warning": False,
     },
     "agency": {
         "name": "Agency Pro", "max_machines": 10,
@@ -81,6 +93,8 @@ TIERS = {
             "unlimited_dms", "voice_notes", "unlimited_profiles",
         ],
         "max_profiles": 9999, "duration_days": 30, "price": 197,
+        "dm_limit_monthly": 0, "dm_limit_daily_per_account": 0,
+        "show_dm_warning": False,
     },
 }
 
@@ -168,6 +182,159 @@ def ts_human(ts):
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
 
 
+# ==================== USAGE TRACKING ====================
+# Per-key DM counters with monthly + per-account-daily granularity.
+# Redis keys:
+#   usage:{key}:dm_month:{YYYY-MM}        -> total DMs sent this month
+#   usage:{key}:dm_day:{account}:{YYYYMMDD} -> DMs from this account today
+#   usage:{key}:lifetime_dms              -> all-time DM total
+
+def _month_bucket() -> str:
+    return datetime.now().strftime("%Y-%m")
+
+def _day_bucket() -> str:
+    return datetime.now().strftime("%Y%m%d")
+
+def _safe_account(acct: str) -> str:
+    """Sanitize username for use in a Redis key."""
+    s = (acct or "default").strip().lstrip("@") or "default"
+    return "".join(c for c in s if c.isalnum() or c in "._-")[:64]
+
+
+def get_usage_stats(r, key: str, tier_info: dict) -> dict:
+    """Return current monthly + lifetime DM usage for a key."""
+    month = _month_bucket()
+    monthly_used = 0
+    try:
+        v = r.get(f"usage:{key}:dm_month:{month}")
+        monthly_used = int(v) if v else 0
+    except Exception:
+        monthly_used = 0
+    lifetime = 0
+    try:
+        v = r.get(f"usage:{key}:lifetime_dms")
+        lifetime = int(v) if v else 0
+    except Exception:
+        lifetime = 0
+    return {
+        "month": month,
+        "dms_used_month": monthly_used,
+        "dms_limit_month": int(tier_info.get("dm_limit_monthly", 0) or 0),
+        "dms_used_lifetime": lifetime,
+    }
+
+
+def get_account_daily(r, key: str, account: str) -> int:
+    try:
+        v = r.get(f"usage:{key}:dm_day:{_safe_account(account)}:{_day_bucket()}")
+        return int(v) if v else 0
+    except Exception:
+        return 0
+
+
+@app.route("/api/usage/check", methods=["POST", "OPTIONS"])
+def usage_check():
+    """Return current DM/account usage for a key without recording anything."""
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    account = d.get("account", "").strip()  # optional IG username
+    if not key:
+        return cors({"ok": False, "error": "Missing key"}, 400)
+
+    r = get_redis()
+    lic = get_lic(r, key)
+    if not lic:
+        return cors({"ok": False, "error": "Invalid key"})
+    tier = lic.get("tier", "trial")
+    ti = TIERS.get(tier, TIERS["trial"])
+
+    stats = get_usage_stats(r, key, ti)
+    daily_for_account = get_account_daily(r, key, account) if account else 0
+
+    monthly_remaining = -1
+    if stats["dms_limit_month"] > 0:
+        monthly_remaining = max(0, stats["dms_limit_month"] - stats["dms_used_month"])
+
+    return cors({
+        "ok": True,
+        "tier": tier,
+        "tier_name": ti["name"],
+        "dm_limit_monthly":          ti.get("dm_limit_monthly", 0),
+        "dm_limit_daily_per_account":ti.get("dm_limit_daily_per_account", 0),
+        "show_dm_warning":           ti.get("show_dm_warning", False),
+        "max_profiles":              ti.get("max_profiles", 1),
+        "dms_used_month":            stats["dms_used_month"],
+        "dms_used_lifetime":         stats["dms_used_lifetime"],
+        "dms_remaining_month":       monthly_remaining,
+        "dms_used_today_for_account":daily_for_account,
+        "active_machines":           len(lic.get("machines", [])),
+    })
+
+
+@app.route("/api/usage/dm-sent", methods=["POST", "OPTIONS"])
+def usage_dm_sent():
+    """Record DMs sent. Increments monthly + per-account-daily counters.
+
+    Body: { key, account, count?=1 }
+    Returns updated counters + whether further sends are allowed.
+    """
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    account = d.get("account", "").strip()
+    count = int(d.get("count", 1) or 1)
+    if not key:
+        return cors({"ok": False, "error": "Missing key"}, 400)
+    if count <= 0:
+        count = 1
+
+    r = get_redis()
+    lic = get_lic(r, key)
+    if not lic:
+        return cors({"ok": False, "error": "Invalid key"})
+    tier = lic.get("tier", "trial")
+    ti = TIERS.get(tier, TIERS["trial"])
+
+    month = _month_bucket()
+    day = _day_bucket()
+    acct = _safe_account(account) if account else "default"
+
+    # Atomic increments — Upstash supports incrby
+    monthly_key = f"usage:{key}:dm_month:{month}"
+    daily_key   = f"usage:{key}:dm_day:{acct}:{day}"
+    lifetime_key = f"usage:{key}:lifetime_dms"
+
+    try:
+        new_monthly  = r.incrby(monthly_key, count)
+        new_daily    = r.incrby(daily_key, count)
+        new_lifetime = r.incrby(lifetime_key, count)
+        # Expire monthly counter ~40 days, daily ~2 days (auto-cleanup)
+        try:
+            r.expire(monthly_key, 60 * 60 * 24 * 40)
+            r.expire(daily_key,   60 * 60 * 24 * 2)
+        except Exception:
+            pass
+    except Exception as e:
+        return cors({"ok": False, "error": f"Counter update failed: {e}"})
+
+    monthly_limit = int(ti.get("dm_limit_monthly", 0) or 0)
+    daily_limit   = int(ti.get("dm_limit_daily_per_account", 0) or 0)
+    monthly_remaining = -1
+    if monthly_limit > 0:
+        monthly_remaining = max(0, monthly_limit - int(new_monthly))
+
+    return cors({
+        "ok": True,
+        "dms_used_month":            int(new_monthly),
+        "dm_limit_monthly":          monthly_limit,
+        "dms_remaining_month":       monthly_remaining,
+        "dms_used_today_for_account":int(new_daily),
+        "dm_limit_daily_per_account":daily_limit,
+        "dms_used_lifetime":         int(new_lifetime),
+        "monthly_limit_reached":     (monthly_limit > 0 and int(new_monthly) >= monthly_limit),
+        "daily_limit_reached":       (daily_limit > 0 and int(new_daily) >= daily_limit),
+    })
+
+
 # ==================== CORS PREFLIGHT ====================
 
 @app.before_request
@@ -217,6 +384,12 @@ def validate_license():
         "chars_used": 0, "chars_limit": char_limit,
     }
 
+    # DM-usage stats for this key
+    dm_stats = get_usage_stats(r, key, ti)
+    monthly_remaining = -1
+    if dm_stats["dms_limit_month"] > 0:
+        monthly_remaining = max(0, dm_stats["dms_limit_month"] - dm_stats["dms_used_month"])
+
     return cors({
         "valid": True,
         "tier": tier,
@@ -227,6 +400,14 @@ def validate_license():
         "expires_at_human": ts_human(expires_at),
         "tts_words_used": usage.get("chars_used", 0),
         "tts_words_limit": usage.get("chars_limit", char_limit),
+        # DM limit/usage exposed to the client app
+        "dm_limit_monthly":          ti.get("dm_limit_monthly", 0),
+        "dm_limit_daily_per_account":ti.get("dm_limit_daily_per_account", 0),
+        "show_dm_warning":           ti.get("show_dm_warning", False),
+        "dms_used_month":            dm_stats["dms_used_month"],
+        "dms_remaining_month":       monthly_remaining,
+        "dms_used_lifetime":         dm_stats["dms_used_lifetime"],
+        "active_machines":           len(lic.get("machines", [])),
     })
 
 
