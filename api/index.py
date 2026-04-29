@@ -302,15 +302,22 @@ def usage_dm_sent():
     monthly_key = f"usage:{key}:dm_month:{month}"
     daily_key   = f"usage:{key}:dm_day:{acct}:{day}"
     lifetime_key = f"usage:{key}:lifetime_dms"
+    # Global daily counter (used by admin dashboard chart)
+    global_day_key = f"dms:daily:{day}"
 
     try:
         new_monthly  = r.incrby(monthly_key, count)
         new_daily    = r.incrby(daily_key, count)
         new_lifetime = r.incrby(lifetime_key, count)
+        try:
+            r.incrby(global_day_key, count)
+        except Exception:
+            pass
         # Expire monthly counter ~40 days, daily ~2 days (auto-cleanup)
         try:
             r.expire(monthly_key, 60 * 60 * 24 * 40)
             r.expire(daily_key,   60 * 60 * 24 * 2)
+            r.expire(global_day_key, 60 * 60 * 24 * 60)
         except Exception:
             pass
     except Exception as e:
@@ -710,6 +717,16 @@ def admin_list_keys():
         ti = TIERS.get(tier, TIERS["basic"])
         exp = lic.get("expires_at", 0)
         status = "revoked" if lic.get("revoked") else ("expired" if time.time() > exp else "active")
+        # DM usage stats
+        try:
+            stats = get_usage_stats(r, key, ti)
+            dms_used_month   = stats["dms_used_month"]
+            dms_lifetime     = stats["dms_used_lifetime"]
+            dm_limit_monthly = stats["dms_limit_month"]
+        except Exception:
+            dms_used_month = 0
+            dms_lifetime = 0
+            dm_limit_monthly = int(ti.get("dm_limit_monthly", 0) or 0)
         keys_data.append({
             "key": key, "tier": tier, "tier_name": ti["name"], "status": status,
             "created_at": lic.get("created_at", 0),
@@ -718,8 +735,12 @@ def admin_list_keys():
             "machines": lic.get("machines", []),
             "machine_count": len(lic.get("machines", [])),
             "max_machines": lic.get("max_machines_override") or ti["max_machines"],
+            "max_profiles": ti.get("max_profiles", 1),
             "last_validated": lic.get("last_validated"),
             "notes": lic.get("notes", ""),
+            "dms_used_month":     dms_used_month,
+            "dm_limit_monthly":   dm_limit_monthly,
+            "dms_used_lifetime":  dms_lifetime,
         })
 
     keys_data.sort(key=lambda x: x["created_at"], reverse=True)
@@ -780,6 +801,39 @@ def admin_stats():
             d = json.loads(day_raw) if isinstance(day_raw, str) else (day_raw or {"chars": 0, "requests": 0})
             daily.append({"date": day_str, "chars": d.get("chars", d.get("words", 0)), "requests": d.get("requests", 0)})
         s["tts_daily"] = daily
+
+        # ── DM usage aggregates ────────────────────────────────────
+        dms_total_lifetime = 0
+        dms_total_month = 0
+        if all_keys:
+            month_bucket = datetime.now().strftime("%Y-%m")
+            for key in all_keys:
+                try:
+                    life = r.get(f"usage:{key}:lifetime_dms")
+                    if life: dms_total_lifetime += int(life)
+                except Exception:
+                    pass
+                try:
+                    mo = r.get(f"usage:{key}:dm_month:{month_bucket}")
+                    if mo: dms_total_month += int(mo)
+                except Exception:
+                    pass
+        s["dms_total_lifetime"] = dms_total_lifetime
+        s["dms_total_month"]    = dms_total_month
+
+        # Daily DM history (last 30 days, global)
+        dms_daily = []
+        for i in range(30):
+            day_dt = datetime.now() - timedelta(days=29 - i)
+            day_compact = day_dt.strftime("%Y%m%d")
+            day_human   = day_dt.strftime("%Y-%m-%d")
+            try:
+                v = r.get(f"dms:daily:{day_compact}")
+                count = int(v) if v else 0
+            except Exception:
+                count = 0
+            dms_daily.append({"date": day_human, "dms": count})
+        s["dms_daily"] = dms_daily
 
         return cors({"success": True, "stats": s})
     except Exception as e:
