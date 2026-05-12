@@ -19,7 +19,11 @@ app = Flask(__name__)
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123").strip()
 HUME_API_KEY = os.environ.get("HUME_API_KEY", "").strip()
 HUME_SECRET_KEY = os.environ.get("HUME_SECRET_KEY", "").strip()
+# ColdNerd Pro = our server-managed ElevenLabs API key. Stored as a Vercel
+# environment variable so it is never shipped inside the desktop EXE.
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "").strip()
 DEFAULT_CHAR_LIMIT = int(os.environ.get("DEFAULT_CHAR_LIMIT", os.environ.get("DEFAULT_WORD_LIMIT", "5000")))
+DEFAULT_LEAD_LIMIT = int(os.environ.get("DEFAULT_LEAD_LIMIT", "10000"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 
 TIERS = {
@@ -174,6 +178,30 @@ def _migrate_tts_usage(u: dict) -> dict:
 
 def count_chars(text):
     return len(text)
+
+
+# ── Lead-scraping quotas (per license, admin-controlled) ───────────────
+# Stored in Redis as:
+#   leads:{key}            -> {"leads_used": N, "leads_limit": M, "created_at": ts}
+
+def get_leads(r, k):
+    raw = r.get(f"leads:{k}")
+    if not raw:
+        return None
+    return json.loads(raw) if isinstance(raw, str) else raw
+
+
+def save_leads(r, k, d):
+    r.set(f"leads:{k}", json.dumps(d))
+
+
+def get_leads_or_default(r, k):
+    rec = get_leads(r, k) or {
+        "leads_used": 0,
+        "leads_limit": DEFAULT_LEAD_LIMIT,
+        "created_at": time.time(),
+    }
+    return rec
 
 
 def ts_human(ts):
@@ -397,6 +425,10 @@ def validate_license():
     if dm_stats["dms_limit_month"] > 0:
         monthly_remaining = max(0, dm_stats["dms_limit_month"] - dm_stats["dms_used_month"])
 
+    # Lead-scraping quota (admin-controlled per-license cap)
+    leads_rec = get_leads_or_default(r, key)
+    leads_remaining = max(0, int(leads_rec["leads_limit"]) - int(leads_rec["leads_used"]))
+
     return cors({
         "valid": True,
         "tier": tier,
@@ -407,6 +439,13 @@ def validate_license():
         "expires_at_human": ts_human(expires_at),
         "tts_words_used": usage.get("chars_used", 0),
         "tts_words_limit": usage.get("chars_limit", char_limit),
+        # ColdNerd Pro voice character usage (same Redis namespace as Hume tracker)
+        "coldnerd_pro_chars_used":  usage.get("chars_used", 0),
+        "coldnerd_pro_chars_limit": usage.get("chars_limit", char_limit),
+        # Lead scraping quota (NEW)
+        "leads_used":      int(leads_rec["leads_used"]),
+        "leads_limit":     int(leads_rec["leads_limit"]),
+        "leads_remaining": leads_remaining,
         # DM limit/usage exposed to the client app
         "dm_limit_monthly":          ti.get("dm_limit_monthly", 0),
         "dm_limit_daily_per_account":ti.get("dm_limit_daily_per_account", 0),
@@ -626,6 +665,246 @@ def tts_generate():
         return cors({"success": False, "error": f"TTS error: {str(e)}"}, 500)
 
 
+@app.route("/api/tts/coldnerd-pro", methods=["POST", "OPTIONS"])
+def tts_coldnerd_pro():
+    """Generate a voice note via the server-managed ElevenLabs key.
+
+    This is the *ColdNerd Pro Model* — the desktop app never sees the
+    ElevenLabs API key. Per-license character usage is tracked under the
+    same Redis namespace as the Hume tracker (so the admin's existing
+    "Character Limit" controls in the dashboard work for both models).
+
+    Request JSON:
+      { license_key, hwid, text, voice_id,
+        model_id?, stability?, similarity_boost?, style?,
+        use_speaker_boost?, speed?, language_code?, output_format? }
+    """
+    d = request.get_json(silent=True)
+    if not d:
+        return cors({"success": False, "error": "Invalid request"}, 400)
+
+    license_key = d.get("license_key", "").strip()
+    hwid = d.get("hwid", "").strip()
+    text = d.get("text", "")
+    voice_id = (d.get("voice_id", "") or "").strip()
+
+    if not license_key or not hwid or not text:
+        return cors({"success": False, "error": "Missing required fields"}, 400)
+    if not voice_id:
+        return cors({"success": False, "error": "voice_id is required"}, 400)
+
+    r = get_redis()
+    lic = get_lic(r, license_key)
+    if not lic:
+        return cors({"success": False, "error": "Invalid license key"}, 401)
+    if lic.get("revoked"):
+        return cors({"success": False, "error": "License revoked"}, 401)
+    if time.time() > lic.get("expires_at", 0):
+        return cors({"success": False, "error": "License expired"}, 401)
+    if hwid not in [m["hwid"] for m in lic.get("machines", [])]:
+        return cors({"success": False, "error": "Machine not activated"}, 401)
+
+    char_count = count_chars(text)
+    cfg = get_tts_config(r)
+    default_limit = cfg.get("default_char_limit", DEFAULT_CHAR_LIMIT)
+
+    usage = _migrate_tts_usage(get_tts(r, license_key) or {
+        "chars_used": 0, "chars_limit": default_limit,
+        "requests_count": 0, "last_request": 0, "created_at": time.time(),
+    })
+
+    remaining = usage["chars_limit"] - usage["chars_used"]
+    if char_count > remaining:
+        return cors({
+            "success": False, "error": "char_limit_reached",
+            "message": (
+                f"ColdNerd Pro character limit reached. You have "
+                f"{max(0, remaining)} characters remaining out of "
+                f"{usage['chars_limit']}. Contact admin for more."
+            ),
+            "chars_used": usage["chars_used"],
+            "chars_limit": usage["chars_limit"],
+            "chars_remaining": max(0, remaining),
+        }, 403)
+
+    if not ELEVENLABS_API_KEY:
+        return cors({"success": False, "error": "ColdNerd Pro not configured on server (missing ELEVENLABS_API_KEY)."}, 503)
+
+    # ── Build the ElevenLabs payload from client-supplied settings ──
+    def _f(x, lo, hi, default):
+        try:
+            v = float(x) if x is not None else default
+        except (TypeError, ValueError):
+            v = default
+        return max(lo, min(hi, v))
+
+    model_id        = (d.get("model_id") or "eleven_multilingual_v2").strip()
+    stability       = _f(d.get("stability"),         0.0, 1.0, 0.5)
+    similarity      = _f(d.get("similarity_boost"),  0.0, 1.0, 0.75)
+    style           = _f(d.get("style"),             0.0, 1.0, 0.0)
+    speed           = _f(d.get("speed"),             0.7, 1.2, 1.0)
+    speaker_boost   = bool(d.get("use_speaker_boost", True))
+    language_code   = (d.get("language_code") or "").strip()
+    output_format   = (d.get("output_format") or "mp3_44100_128").strip()
+
+    # If the text has ElevenLabs v3 audio tags ([laughs] etc.) and the client
+    # asked for a non-v3 model, upgrade automatically — otherwise the tags
+    # come out as audible words ("open bracket laughs close bracket").
+    if model_id != "eleven_v3":
+        if any(tag in text.lower() for tag in (
+            "[laughs]", "[laugh]", "[chuckles]", "[chuckle]", "[sighs]", "[sigh]",
+            "[whispers]", "[gasps]", "[pause]", "[excited]", "[happy]", "[sad]",
+            "[angry]", "[breathes]", "[clears throat]",
+        )):
+            model_id = "eleven_v3"
+
+    payload = {
+        "text": text,
+        "model_id": model_id,
+        "voice_settings": {
+            "stability": stability,
+            "similarity_boost": similarity,
+            "style": style,
+            "use_speaker_boost": speaker_boost,
+            "speed": speed,
+        },
+    }
+    if language_code:
+        payload["language_code"] = language_code
+
+    el_url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    query = f"?output_format={output_format}" if output_format else ""
+
+    try:
+        el_resp = http_requests.post(
+            el_url + query,
+            json=payload,
+            headers={
+                "xi-api-key": ELEVENLABS_API_KEY,
+                "accept": "audio/mpeg",
+                "Content-Type": "application/json",
+            },
+            timeout=120,
+        )
+        if el_resp.status_code == 401:
+            return cors({"success": False, "error": "ColdNerd Pro key rejected by ElevenLabs (admin: rotate ELEVENLABS_API_KEY)."}, 502)
+        if el_resp.status_code == 402:
+            return cors({"success": False, "error": "ColdNerd Pro quota exhausted on the ElevenLabs side (admin must top up)."}, 502)
+        if el_resp.status_code == 422 and model_id == "eleven_v3":
+            # Retry on multilingual_v2 (server-side fallback when v3 rejects tags)
+            payload["model_id"] = "eleven_multilingual_v2"
+            el_resp = http_requests.post(
+                el_url + query,
+                json=payload,
+                headers={
+                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "accept": "audio/mpeg",
+                    "Content-Type": "application/json",
+                },
+                timeout=120,
+            )
+        if el_resp.status_code != 200:
+            return cors({"success": False, "error": f"ElevenLabs API error: {el_resp.status_code} — {el_resp.text[:200]}"}, 502)
+
+        audio_b64 = base64.b64encode(el_resp.content).decode()
+
+        # Update usage
+        usage["chars_used"] += char_count
+        usage["requests_count"] = usage.get("requests_count", 0) + 1
+        usage["last_request"] = time.time()
+        save_tts(r, license_key, usage)
+        r.sadd("tts:all_users", license_key)
+
+        # Daily stats (shared with Hume so the admin chart shows total
+        # ColdNerd voice consumption).
+        today = datetime.now().strftime("%Y-%m-%d")
+        day_raw = r.get(f"tts:daily:{today}")
+        day = json.loads(day_raw) if isinstance(day_raw, str) else (day_raw or {"chars": 0, "requests": 0})
+        day["chars"] = day.get("chars", day.get("words", 0)) + char_count
+        day.pop("words", None)
+        day["requests"] = day.get("requests", 0) + 1
+        r.set(f"tts:daily:{today}", json.dumps(day))
+
+        return cors({
+            "success": True,
+            "audio_base64": audio_b64,
+            "model_used": payload["model_id"],
+            "chars_used_now": char_count,
+            "chars_used_total": usage["chars_used"],
+            "chars_limit": usage["chars_limit"],
+            "chars_remaining": usage["chars_limit"] - usage["chars_used"],
+        })
+
+    except http_requests.exceptions.Timeout:
+        return cors({"success": False, "error": "ColdNerd Pro request timed out (ElevenLabs)."}, 504)
+    except Exception as e:
+        return cors({"success": False, "error": f"ColdNerd Pro error: {str(e)}"}, 500)
+
+
+# ==================== LEAD-SCRAPING QUOTA ENDPOINTS ====================
+
+@app.route("/api/leads/check", methods=["POST", "OPTIONS"])
+def leads_check():
+    """Report lead-scraping usage + remaining for a license key."""
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    if not key:
+        return cors({"success": False, "error": "Missing key"}, 400)
+    r = get_redis()
+    lic = get_lic(r, key)
+    if not lic:
+        return cors({"success": False, "error": "Invalid license key"}, 401)
+    rec = get_leads_or_default(r, key)
+    remaining = max(0, int(rec["leads_limit"]) - int(rec["leads_used"]))
+    return cors({
+        "success": True,
+        "leads_used": int(rec["leads_used"]),
+        "leads_limit": int(rec["leads_limit"]),
+        "leads_remaining": remaining,
+    })
+
+
+@app.route("/api/leads/record", methods=["POST", "OPTIONS"])
+def leads_record():
+    """Increment lead-scraping counter for a license key.
+
+    Body: { key, count }
+
+    Returns updated counters and a ``limit_reached`` flag the client should
+    use to stop further scraping.
+    """
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    hwid = d.get("hwid", "").strip()
+    count = int(d.get("count", 0) or 0)
+    if not key or count <= 0:
+        return cors({"success": False, "error": "Missing key or invalid count"}, 400)
+
+    r = get_redis()
+    lic = get_lic(r, key)
+    if not lic:
+        return cors({"success": False, "error": "Invalid license key"}, 401)
+    if lic.get("revoked") or time.time() > lic.get("expires_at", 0):
+        return cors({"success": False, "error": "License inactive"}, 401)
+    if hwid and hwid not in [m["hwid"] for m in lic.get("machines", [])]:
+        return cors({"success": False, "error": "Machine not activated"}, 401)
+
+    rec = get_leads_or_default(r, key)
+    rec["leads_used"] = int(rec.get("leads_used", 0)) + count
+    rec["last_recorded"] = time.time()
+    save_leads(r, key, rec)
+    r.sadd("leads:all_users", key)
+
+    remaining = max(0, int(rec["leads_limit"]) - int(rec["leads_used"]))
+    return cors({
+        "success": True,
+        "leads_used": int(rec["leads_used"]),
+        "leads_limit": int(rec["leads_limit"]),
+        "leads_remaining": remaining,
+        "limit_reached": remaining <= 0,
+    })
+
+
 @app.route("/api/tts/check", methods=["POST", "OPTIONS"])
 def tts_check():
     """Check TTS character balance for a license key."""
@@ -727,6 +1006,22 @@ def admin_list_keys():
             dms_used_month = 0
             dms_lifetime = 0
             dm_limit_monthly = int(ti.get("dm_limit_monthly", 0) or 0)
+        # Lead-scraping usage (admin can cap per license)
+        try:
+            lrec = get_leads(r, key) or {}
+            leads_used  = int(lrec.get("leads_used", 0))
+            leads_limit = int(lrec.get("leads_limit", DEFAULT_LEAD_LIMIT))
+        except Exception:
+            leads_used = 0
+            leads_limit = DEFAULT_LEAD_LIMIT
+        # ColdNerd Pro voice character usage (shares TTS namespace with Hume)
+        try:
+            tts_rec = _migrate_tts_usage(get_tts(r, key) or {})
+            cn_pro_used  = int(tts_rec.get("chars_used", 0)) if tts_rec else 0
+            cn_pro_limit = int(tts_rec.get("chars_limit", DEFAULT_CHAR_LIMIT)) if tts_rec else DEFAULT_CHAR_LIMIT
+        except Exception:
+            cn_pro_used = 0
+            cn_pro_limit = DEFAULT_CHAR_LIMIT
         keys_data.append({
             "key": key, "tier": tier, "tier_name": ti["name"], "status": status,
             "created_at": lic.get("created_at", 0),
@@ -741,6 +1036,11 @@ def admin_list_keys():
             "dms_used_month":     dms_used_month,
             "dm_limit_monthly":   dm_limit_monthly,
             "dms_used_lifetime":  dms_lifetime,
+            # NEW admin-controlled quotas
+            "leads_used":            leads_used,
+            "leads_limit":           leads_limit,
+            "coldnerd_pro_chars_used":  cn_pro_used,
+            "coldnerd_pro_chars_limit": cn_pro_limit,
         })
 
     keys_data.sort(key=lambda x: x["created_at"], reverse=True)
@@ -1267,6 +1567,103 @@ def admin_tts_set_name():
     save_tts(r, key, usage)
     r.sadd("tts:all_users", key)
     return cors({"success": True, "message": f"Name set to '{name}'" if name else "Name cleared"})
+
+
+# ==================== ADMIN LEAD-SCRAPING ENDPOINTS ====================
+
+@app.route("/api/admin/leads/list", methods=["GET", "OPTIONS"])
+def admin_leads_list():
+    """List every license that has lead-scraping usage tracked."""
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    r = get_redis()
+    keys = r.smembers("leads:all_users") or set()
+    rows = []
+    for k in keys:
+        rec = get_leads(r, k) or {}
+        lic = get_lic(r, k)
+        tier = lic.get("tier", "unknown") if lic else "unknown"
+        ll = int(rec.get("leads_limit", DEFAULT_LEAD_LIMIT))
+        lu = int(rec.get("leads_used", 0))
+        rows.append({
+            "license_key": k,
+            "tier": tier,
+            "leads_used": lu,
+            "leads_limit": ll,
+            "leads_remaining": max(0, ll - lu),
+            "usage_percent": round((lu / ll * 100) if ll > 0 else 0, 1),
+            "last_recorded": ts_human(rec.get("last_recorded")),
+        })
+    rows.sort(key=lambda x: x["leads_used"], reverse=True)
+    return cors({"success": True, "users": rows})
+
+
+@app.route("/api/admin/leads/set-limit", methods=["POST", "OPTIONS"])
+def admin_leads_set_limit():
+    """Set the lead-scraping cap for a specific license key."""
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    limit = int(d.get("limit", 0))
+    if not key or limit <= 0:
+        return cors({"success": False, "error": "Missing key or invalid limit"}, 400)
+    r = get_redis()
+    rec = get_leads_or_default(r, key)
+    rec["leads_limit"] = limit
+    save_leads(r, key, rec)
+    r.sadd("leads:all_users", key)
+    return cors({"success": True, "message": f"Lead limit set to {limit:,}"})
+
+
+@app.route("/api/admin/leads/add", methods=["POST", "OPTIONS"])
+def admin_leads_add():
+    """Add more leads to the license's cap (top-up)."""
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    leads = int(d.get("leads", 0))
+    if not key or leads <= 0:
+        return cors({"success": False, "error": "Missing key or invalid lead count"}, 400)
+    r = get_redis()
+    rec = get_leads_or_default(r, key)
+    rec["leads_limit"] = int(rec.get("leads_limit", DEFAULT_LEAD_LIMIT)) + leads
+    save_leads(r, key, rec)
+    r.sadd("leads:all_users", key)
+    return cors({"success": True, "message": f"Added {leads:,} leads. New limit: {rec['leads_limit']:,}"})
+
+
+@app.route("/api/admin/leads/reset", methods=["POST", "OPTIONS"])
+def admin_leads_reset():
+    """Reset the consumed-leads counter to zero (keeps the limit)."""
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    d = request.get_json(silent=True) or {}
+    key = d.get("key", "").strip()
+    if not key:
+        return cors({"success": False, "error": "Missing key"}, 400)
+    r = get_redis()
+    rec = get_leads_or_default(r, key)
+    rec["leads_used"] = 0
+    save_leads(r, key, rec)
+    return cors({"success": True, "message": "Lead counter reset to 0"})
+
+
+@app.route("/api/admin/leads/default-limit", methods=["POST", "OPTIONS"])
+def admin_leads_default_limit():
+    """Change the default lead cap newly tracked licenses inherit."""
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    d = request.get_json(silent=True) or {}
+    limit = int(d.get("limit", 0))
+    if limit <= 0:
+        return cors({"success": False, "error": "Invalid limit"}, 400)
+    r = get_redis()
+    cfg = json.loads(r.get("leads:config") or "{}") if r.get("leads:config") else {}
+    cfg["default_lead_limit"] = limit
+    r.set("leads:config", json.dumps(cfg))
+    return cors({"success": True, "message": f"Default lead limit set to {limit:,}"})
 
 
 @app.route("/api/admin/tts/default-limit", methods=["POST", "OPTIONS"])
