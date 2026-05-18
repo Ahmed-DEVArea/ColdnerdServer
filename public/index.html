@@ -245,6 +245,7 @@ tr:hover td{background:#F9FAFB}
   <div class="tab-nav">
     <button class="active" onclick="switchTab('licenses',this)">&#128273; Licenses</button>
     <button onclick="switchTab('tts',this)">&#127911; TTS Management</button>
+    <button onclick="switchTab('updates',this)">&#128640; App Updates</button>
   </div>
 
   <!-- Licenses Tab -->
@@ -297,6 +298,60 @@ tr:hover td{background:#F9FAFB}
         <table><thead><tr><th>License Key</th><th>Name</th><th>Tier</th><th>Chars Used</th><th>Limit</th><th>Usage</th><th>Requests</th><th>Last Request</th><th>Actions</th></tr></thead><tbody id="tts-tbody"></tbody></table>
       </div>
       <p id="tts-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No TTS users yet.</p>
+    </div>
+  </div>
+
+  <!-- App Updates Tab -->
+  <div class="tab-content" id="tab-updates">
+    <div class="section">
+      <h2>&#128640; Publish a New ColdNerd Release</h2>
+      <p style="color:var(--text-sec);font-size:13px;margin-bottom:18px;line-height:1.55">
+        Fill in the GitHub release details below and hit <b>Publish Update</b>. Every running
+        ColdNerd desktop app will see an <b>Update v{version}</b> pill in the title bar
+        on its next background poll (or immediately on next launch / when the user
+        clicks <b>Check for Updates</b>). The pill downloads the EXE, verifies the
+        SHA-256 (if provided), swaps in the new build, and relaunches.
+      </p>
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 200px"><label>Version *</label><input type="text" id="upd-version" placeholder="e.g. 2.3.0"></div>
+        <div class="form-group"><label>Download URL *</label><input type="text" id="upd-url" placeholder="https://github.com/.../releases/download/v2.3.0/ColdNerd.exe"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>SHA-256 (optional)</label><input type="text" id="upd-sha256" placeholder="64-character hex digest"></div>
+        <div class="form-group" style="flex:0 0 200px"><label>Minimum Supported</label><input type="text" id="upd-min" placeholder="e.g. 2.0.0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Release Notes / Changelog</label><textarea id="upd-notes" rows="4" placeholder="What's new in this build? Markdown / plain text — shown to the user before they install." style="resize:vertical;font-family:inherit"></textarea></div>
+      </div>
+      <div class="form-row" style="align-items:center;gap:18px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-sec);cursor:pointer">
+          <input type="checkbox" id="upd-mandatory" style="width:16px;height:16px;cursor:pointer">
+          <span>Mandatory update <span style="color:var(--text-muted);font-weight:400">(client will refuse to keep working on the old version)</span></span>
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="upd-publish-btn" onclick="publishUpdate()">&#128640; Publish Update</button>
+        <button class="btn btn-outline" onclick="loadManifest()">&#128260; Refresh from server</button>
+        <button class="btn btn-outline" onclick="copyManifestUrl()">&#128279; Copy /api/version URL</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>&#128203; Current Live Manifest</h2>
+      <p style="color:var(--text-sec);font-size:13px;margin-bottom:14px">
+        This is exactly what every desktop app sees when it polls
+        <code style="color:var(--primary)">GET /api/version</code>.
+        Polling runs in the background every 30&nbsp;min, plus immediately on app launch
+        and whenever the user clicks <b>Check for Updates</b>.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px">
+        <div class="stat-card" style="padding:16px"><div class="stat-info"><div class="stat-label">Latest Version</div><div class="stat-value" id="cur-version" style="font-size:22px">&mdash;</div></div></div>
+        <div class="stat-card" style="padding:16px"><div class="stat-info"><div class="stat-label">Mandatory</div><div class="stat-value" id="cur-mandatory" style="font-size:22px">&mdash;</div></div></div>
+        <div class="stat-card" style="padding:16px"><div class="stat-info"><div class="stat-label">Min Supported</div><div class="stat-value" id="cur-min" style="font-size:22px">&mdash;</div></div></div>
+      </div>
+      <div style="background:#F9FAFB;border:1px solid var(--card-border);border-radius:10px;padding:14px;font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:12px;color:var(--text);overflow:auto;max-height:280px">
+        <pre id="cur-manifest-pre" style="margin:0;white-space:pre-wrap;word-break:break-all">Loading…</pre>
+      </div>
     </div>
   </div>
 </div>
@@ -409,6 +464,7 @@ async function refreshAll(){
   try{await loadStats()}catch(e){console.error('loadStats crashed:',e)}
   try{await loadKeys()}catch(e){console.error('loadKeys crashed:',e)}
   try{await loadTTSUsers()}catch(e){console.error('loadTTSUsers crashed:',e)}
+  try{await loadManifest()}catch(e){console.error('loadManifest crashed:',e)}
 }
 
 async function loadStats(){
@@ -540,6 +596,80 @@ async function doTTSSetLimit(){const v=parseInt(document.getElementById('tts-lim
 async function doTTSSetName(){const v=(document.getElementById('tts-name-val').value||'').trim();const r=await apiPost('/admin/tts/set-name',{key:currentKey,name:v});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
 async function doTTSReset(){const r=await apiPost('/admin/tts/reset',{key:currentKey});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-tts-action');refreshAll()}}
 async function doTTSRemove(k){if(!confirm('Remove TTS data for '+k+'?'))return;const r=await apiPost('/admin/tts/remove',{key:k});toast(r.success?'Removed':r.error,r.success?'success':'error');refreshAll()}
+
+// ─── App Updates ───
+async function loadManifest(){
+  // /api/version is the public endpoint the desktop EXE polls — no auth header
+  // is required, but we still go through apiGet so errors surface in the same
+  // way as everything else.
+  try{
+    const r=await fetch(API+'/version',{cache:'no-store'});
+    if(!r.ok){throw new Error('HTTP '+r.status)}
+    const m=await r.json();
+    // Header summary cards
+    document.getElementById('cur-version').textContent=m.version||'—';
+    document.getElementById('cur-mandatory').textContent=m.mandatory?'Yes':'No';
+    document.getElementById('cur-min').textContent=m.min_supported||'—';
+    // Pretty-printed JSON dump so the admin can see *exactly* what each
+    // desktop app receives.
+    document.getElementById('cur-manifest-pre').textContent=JSON.stringify(m,null,2);
+    // Pre-populate the publish form so the admin can tweak one field
+    // (version + URL) without re-typing everything else.
+    if(!document.activeElement || document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA'){
+      document.getElementById('upd-version').value=m.version||'';
+      document.getElementById('upd-url').value=m.url||'';
+      document.getElementById('upd-sha256').value=m.sha256||'';
+      document.getElementById('upd-min').value=m.min_supported||'';
+      document.getElementById('upd-notes').value=m.notes||'';
+      document.getElementById('upd-mandatory').checked=!!m.mandatory;
+    }
+  }catch(e){
+    console.error('loadManifest failed:',e);
+    document.getElementById('cur-manifest-pre').textContent='Failed to load manifest: '+e.message;
+  }
+}
+
+async function publishUpdate(){
+  const ver=(document.getElementById('upd-version').value||'').trim();
+  const url=(document.getElementById('upd-url').value||'').trim();
+  if(!ver){toast('Version is required','error');return}
+  if(!url){toast('Download URL is required','error');return}
+  // Light sanity check — the desktop updater is permissive but we want
+  // to catch obvious typos before they ship to every user.
+  if(!/^\d+\.\d+(\.\d+)?/.test(ver)){toast('Version should look like 2.3.0','error');return}
+  if(!/^https?:\/\//i.test(url)){toast('Download URL must start with http:// or https://','error');return}
+  const body={
+    version: ver,
+    url: url,
+    sha256: (document.getElementById('upd-sha256').value||'').trim(),
+    min_supported: (document.getElementById('upd-min').value||'').trim(),
+    notes: document.getElementById('upd-notes').value||'',
+    mandatory: !!document.getElementById('upd-mandatory').checked,
+  };
+  if(!confirm('Publish ColdNerd v'+ver+' to every running desktop client?\n\nDownload URL:\n'+url)){return}
+  const btn=document.getElementById('upd-publish-btn');
+  const orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML='<div class="spinner"></div> Publishing…';
+  try{
+    const r=await apiPost('/admin/version',body);
+    if(r.success){
+      toast('Update v'+ver+' published — every client will see the prompt on next poll.','success');
+      await loadManifest();
+    }else{
+      toast(r.error||'Publish failed','error');
+    }
+  }catch(e){
+    toast('Network error: '+e.message,'error');
+  }finally{
+    btn.disabled=false;btn.innerHTML=orig;
+  }
+}
+
+function copyManifestUrl(){
+  const u=window.location.origin+API+'/version';
+  navigator.clipboard.writeText(u).then(()=>toast('Manifest URL copied: '+u,'success'),
+    ()=>toast('Could not copy to clipboard','error'));
+}
 
 // ─── Modal/Toast ───
 function openModal(id){document.getElementById(id).classList.add('show')}
