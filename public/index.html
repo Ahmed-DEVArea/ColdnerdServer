@@ -211,6 +211,20 @@ tr:hover td{background:#F9FAFB}
         <div class="stat-value" id="s-dms-lifetime">&mdash;</div>
       </div>
     </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">&#128270;</div>
+      <div class="stat-info">
+        <div class="stat-label">Profiles Scraped</div>
+        <div class="stat-value" id="s-total-scrapes">&mdash;</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">&#128172;</div>
+      <div class="stat-info">
+        <div class="stat-label">Messages Generated</div>
+        <div class="stat-value" id="s-total-messages">&mdash;</div>
+      </div>
+    </div>
   </div>
 
   <!-- Charts Row -->
@@ -241,9 +255,22 @@ tr:hover td{background:#F9FAFB}
     <div style="position:relative;height:200px"><canvas id="dmsChart"></canvas></div>
   </div>
 
+  <!-- Scraping & Messages Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Scraping Activity (30 days) <div class="chart-tabs"><button class="active" onclick="setScrapePeriod('daily',this)">Daily</button><button onclick="setScrapePeriod('weekly',this)">Weekly</button></div></h3>
+      <div style="position:relative;height:220px"><canvas id="scrapesChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Messages Generated (30 days) <div class="chart-tabs"><button class="active" onclick="setMsgPeriod('daily',this)">Daily</button><button onclick="setMsgPeriod('weekly',this)">Weekly</button></div></h3>
+      <div style="position:relative;height:220px"><canvas id="messagesChart"></canvas></div>
+    </div>
+  </div>
+
   <!-- Tab Navigation -->
   <div class="tab-nav">
     <button class="active" onclick="switchTab('licenses',this)">&#128273; Licenses</button>
+    <button onclick="switchTab('leads',this)">&#128270; Lead Quotas</button>
     <button onclick="switchTab('tts',this)">&#127911; TTS Management</button>
     <button onclick="switchTab('updates',this)">&#128640; App Updates</button>
   </div>
@@ -274,6 +301,25 @@ tr:hover td{background:#F9FAFB}
         <table><thead><tr><th>Key</th><th>Tier</th><th>Status</th><th>Machines</th><th>DMs (month)</th><th>DMs Lifetime</th><th>Scraped</th><th>AI Scraped</th><th>Msgs Gen</th><th>Created</th><th>Expires</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="keys-tbody"></tbody></table>
       </div>
       <p id="keys-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No license keys found.</p>
+    </div>
+  </div>
+
+  <!-- Lead Quotas Tab -->
+  <div class="tab-content" id="tab-leads">
+    <div class="section">
+      <h2>&#128270; Lead Scraping Quotas</h2>
+      <p style="color:var(--text-sec);font-size:13px;margin-bottom:18px;line-height:1.55">
+        Manage per-license lead scraping quotas. You can set a limit, add more leads, or reset the counter for any license.
+        Default limit for new licenses: <strong id="leads-default-display">999,999,999</strong> (effectively unlimited).
+      </p>
+      <div class="form-row" style="margin-bottom:20px">
+        <div class="form-group" style="flex:0 0 240px"><label>Default Lead Limit (new licenses)</label><input type="number" id="leads-default-limit" value="999999999" min="0"></div>
+        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="setDefaultLeadLimit()" style="margin-top:auto">Save Default</button></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table><thead><tr><th>License Key</th><th>Tier</th><th>Leads Used</th><th>Leads Limit</th><th>Usage</th><th>Actions</th></tr></thead><tbody id="leads-tbody"></tbody></table>
+      </div>
+      <p id="leads-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No lead usage tracked yet.</p>
     </div>
   </div>
 
@@ -365,6 +411,7 @@ tr:hover td{background:#F9FAFB}
 let API='/api',adminPw='',allKeys=[],currentKey='';
 let charsChart,tierChart,usageChart,dailyData=[];
 let dmsChart,dmDailyData=[];
+let scrapesChart,messagesChart,scrapesDailyData=[];
 
 // ─── Auth ───
 async function doLogin(){
@@ -463,6 +510,7 @@ async function refreshAll(){
   hideError();
   try{await loadStats()}catch(e){console.error('loadStats crashed:',e)}
   try{await loadKeys()}catch(e){console.error('loadKeys crashed:',e)}
+  try{await loadLeads()}catch(e){console.error('loadLeads crashed:',e)}
   try{await loadTTSUsers()}catch(e){console.error('loadTTSUsers crashed:',e)}
   try{await loadManifest()}catch(e){console.error('loadManifest crashed:',e)}
 }
@@ -491,7 +539,10 @@ async function loadStats(){
     const dmLifeEl=document.getElementById('s-dms-lifetime');if(dmLifeEl)dmLifeEl.textContent=fmt(s.dms_total_lifetime||0);
     dailyData=s.tts_daily||[];
     dmDailyData=s.dms_daily||[];
-    renderCharsChart(dailyData);renderTierChart(s);renderUsageChart(dailyData);renderDmsChart(dmDailyData);
+    scrapesDailyData=s.scrapes_daily||[];
+    const scrapesEl=document.getElementById('s-total-scrapes');if(scrapesEl)scrapesEl.textContent=fmt(s.total_scrapes||0);
+    const msgsEl=document.getElementById('s-total-messages');if(msgsEl)msgsEl.textContent=fmt(s.total_messages||0);
+    renderCharsChart(dailyData);renderTierChart(s);renderUsageChart(dailyData);renderDmsChart(dmDailyData);renderScrapesChart(scrapesDailyData);renderMessagesChart(scrapesDailyData);
     console.log('loadStats: SUCCESS',s);
   }catch(e){
     showError('Failed to load stats: '+e.message);
@@ -525,6 +576,69 @@ function renderDmsChart(data){
 function aggregateDmsWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,dms:0};w[wk].dms+=d.dms||0});return Object.values(w)}
 function setDmPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   if(p==='weekly'){renderDmsChart(aggregateDmsWeekly(dmDailyData))}else{renderDmsChart(dmDailyData)}}
+
+function renderScrapesChart(data){
+  const ctx=document.getElementById('scrapesChart');if(!ctx)return;
+  if(scrapesChart)scrapesChart.destroy();
+  scrapesChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[
+    {label:'Scraped',data:data.map(d=>d.scrapes||0),backgroundColor:'#F59E0B',borderRadius:4},
+    {label:'AI Classified',data:data.map(d=>d.ai_scrapes||0),backgroundColor:'#8B5CF6',borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'},beginAtZero:true}}}})
+}
+function renderMessagesChart(data){
+  const ctx=document.getElementById('messagesChart');if(!ctx)return;
+  if(messagesChart)messagesChart.destroy();
+  messagesChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[
+    {label:'Messages',data:data.map(d=>d.messages||0),borderColor:'#7C3AED',backgroundColor:'rgba(124,58,237,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'},beginAtZero:true}}}})
+}
+function aggregateScrapesWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,scrapes:0,ai_scrapes:0,messages:0};w[wk].scrapes+=d.scrapes||0;w[wk].ai_scrapes+=d.ai_scrapes||0;w[wk].messages+=d.messages||0});return Object.values(w)}
+function setScrapePeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(p==='weekly'){renderScrapesChart(aggregateScrapesWeekly(scrapesDailyData))}else{renderScrapesChart(scrapesDailyData)}}
+function setMsgPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(p==='weekly'){renderMessagesChart(aggregateScrapesWeekly(scrapesDailyData))}else{renderMessagesChart(scrapesDailyData)}}
+
+// ─── Lead Quota Management ───
+async function loadLeads(){
+  try{
+    const r=await apiGet('/admin/leads/list');
+    if(!r.success){console.error('loadLeads:',r);return}
+    const users=r.users,tb=document.getElementById('leads-tbody'),em=document.getElementById('leads-empty');
+    if(!users||!users.length){tb.innerHTML='';em.style.display='block';return}em.style.display='none';
+    tb.innerHTML=users.map(u=>{
+      const used=u.leads_used||0,limit=u.leads_limit||0;
+      const isUnlimited=limit>=999999999;
+      const pct=isUnlimited?0:Math.min(100,limit>0?Math.round(used*100/limit):0);
+      const color=pct>=90?'var(--danger)':pct>=70?'var(--warning)':'var(--primary)';
+      const usageTxt=isUnlimited?`${used.toLocaleString()} <span style="color:var(--text-muted);font-size:11px">/ Unlimited</span>`:`${used.toLocaleString()} / ${limit.toLocaleString()}`;
+      const bar=isUnlimited?'<span style="color:var(--success);font-size:11px">Unlimited</span>':`<div style="width:100px;height:6px;background:#E5E7EB;border-radius:3px;margin-top:3px"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div></div>`;
+      return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${u.license_key}</code></td><td><span class="badge badge-${u.tier}">${u.tier}</span></td><td style="font-weight:600">${used.toLocaleString()}</td><td>${isUnlimited?'Unlimited':limit.toLocaleString()}</td><td style="min-width:120px">${bar}</td><td><button class="btn btn-primary btn-sm" onclick="doLeadSetLimit('${u.license_key}')">Set Limit</button> <button class="btn btn-warning btn-sm" onclick="doLeadAdd('${u.license_key}')">+Add</button> <button class="btn btn-info btn-sm" onclick="doLeadReset('${u.license_key}')">Reset</button></td></tr>`
+    }).join('');
+  }catch(e){console.error('loadLeads exception:',e)}
+}
+async function doLeadSetLimit(k){
+  const v=prompt('Set lead limit for '+k+'\n(Enter 0 for unlimited):','999999999');
+  if(v===null)return;const limit=parseInt(v)||0;const actual=limit===0?999999999:limit;
+  const r=await apiPost('/admin/leads/set-limit',{key:k,limit:actual});
+  toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll();
+}
+async function doLeadAdd(k){
+  const v=prompt('Add leads to '+k+':','10000');
+  if(v===null)return;const leads=parseInt(v)||0;if(leads<=0)return toast('Enter a positive number','error');
+  const r=await apiPost('/admin/leads/add',{key:k,leads:leads});
+  toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll();
+}
+async function doLeadReset(k){
+  if(!confirm('Reset lead counter to 0 for '+k+'?'))return;
+  const r=await apiPost('/admin/leads/reset',{key:k});
+  toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll();
+}
+async function setDefaultLeadLimit(){
+  const v=parseInt(document.getElementById('leads-default-limit').value);
+  if(!v&&v!==0)return toast('Enter a valid number','error');
+  const r=await apiPost('/admin/leads/default-limit',{limit:v||999999999});
+  toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success)refreshAll();
+}
 function setChartPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   if(p==='weekly'){const w=aggregateWeekly(dailyData);renderCharsChart(w)}else if(p==='monthly'){const m=aggregateMonthly(dailyData);renderCharsChart(m)}else{renderCharsChart(dailyData)}}
 function setBarPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');

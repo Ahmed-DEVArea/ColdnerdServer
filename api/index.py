@@ -23,7 +23,7 @@ HUME_SECRET_KEY = os.environ.get("HUME_SECRET_KEY", "").strip()
 # environment variable so it is never shipped inside the desktop EXE.
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "").strip()
 DEFAULT_CHAR_LIMIT = int(os.environ.get("DEFAULT_CHAR_LIMIT", os.environ.get("DEFAULT_WORD_LIMIT", "5000")))
-DEFAULT_LEAD_LIMIT = int(os.environ.get("DEFAULT_LEAD_LIMIT", "10000"))
+DEFAULT_LEAD_LIMIT = int(os.environ.get("DEFAULT_LEAD_LIMIT", "999999999"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 
 TIERS = {
@@ -274,11 +274,19 @@ def save_leads(r, k, d):
 
 
 def get_leads_or_default(r, k):
-    rec = get_leads(r, k) or {
-        "leads_used": 0,
-        "leads_limit": DEFAULT_LEAD_LIMIT,
-        "created_at": time.time(),
-    }
+    rec = get_leads(r, k)
+    if not rec:
+        rec = {
+            "leads_used": 0,
+            "leads_limit": DEFAULT_LEAD_LIMIT,
+            "created_at": time.time(),
+        }
+    else:
+        # Upgrade old records that had the previous 10k default
+        # to the new effectively-unlimited default.
+        if int(rec.get("leads_limit", 0)) == 10000:
+            rec["leads_limit"] = DEFAULT_LEAD_LIMIT
+            save_leads(r, k, rec)
     return rec
 
 
@@ -441,6 +449,18 @@ def usage_activity():
     new_scrapes    = _bump_lifetime_counter(r, key, "scrapes_lifetime",    scrapes)
     new_ai_scrapes = _bump_lifetime_counter(r, key, "ai_scrapes_lifetime", ai_scrapes)
     new_messages   = _bump_lifetime_counter(r, key, "messages_lifetime",   messages)
+
+    # Track daily totals for the admin dashboard charts
+    day = _day_bucket()
+    if scrapes > 0:
+        try: r.incrby(f"scrapes:daily:{day}", scrapes)
+        except Exception: pass
+    if ai_scrapes > 0:
+        try: r.incrby(f"ai_scrapes:daily:{day}", ai_scrapes)
+        except Exception: pass
+    if messages > 0:
+        try: r.incrby(f"messages:daily:{day}", messages)
+        except Exception: pass
 
     return cors({
         "success": True,
@@ -1293,6 +1313,37 @@ def admin_stats():
                 count = 0
             dms_daily.append({"date": day_human, "dms": count})
         s["dms_daily"] = dms_daily
+
+        # Daily scraping + message generation history (last 30 days)
+        scrapes_daily = []
+        for i in range(30):
+            day_dt = datetime.now() - timedelta(days=29 - i)
+            day_compact = day_dt.strftime("%Y%m%d")
+            day_human   = day_dt.strftime("%Y-%m-%d")
+            try:
+                sc = r.get(f"scrapes:daily:{day_compact}")
+                ai = r.get(f"ai_scrapes:daily:{day_compact}")
+                mg = r.get(f"messages:daily:{day_compact}")
+            except Exception:
+                sc = ai = mg = 0
+            scrapes_daily.append({
+                "date": day_human,
+                "scrapes": int(sc) if sc else 0,
+                "ai_scrapes": int(ai) if ai else 0,
+                "messages": int(mg) if mg else 0,
+            })
+        s["scrapes_daily"] = scrapes_daily
+
+        # Lifetime totals across all keys
+        total_scrapes = total_ai_scrapes = total_messages = 0
+        if all_keys:
+            for key in all_keys:
+                total_scrapes    += _get_lifetime_counter(r, key, "scrapes_lifetime")
+                total_ai_scrapes += _get_lifetime_counter(r, key, "ai_scrapes_lifetime")
+                total_messages   += _get_lifetime_counter(r, key, "messages_lifetime")
+        s["total_scrapes"]    = total_scrapes
+        s["total_ai_scrapes"] = total_ai_scrapes
+        s["total_messages"]   = total_messages
 
         return cors({"success": True, "stats": s})
     except Exception as e:
