@@ -1,150 +1,263 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ColdNerd — Admin Dashboard</title>
-<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEQ0lEQVR4nOVXTYgcRRT+qrqnZ+enM+PuJF4WXDWRePCQiCwGEvRgvG0uQhTxoFHBiyhkDwEPQiI5CCIYkCTiD2ZV4kGTg4n4FwQTUONP3BhWSA4JaEKy2Z+e7umenq6S92pmnZ2dmZ1ZD3tIQe3U9vTW++r7vvderdj06FWN1RpaK4lVHvKWB2B3pUcA4n9wpDWg1AoBSAmEoUYl0rxRv0MAcByBXFZ0BWF3Cu4HGhvutPHwljTWlSwIYqOHwA2s857C6Z+r+On3KrIZ0fEQojUNKXjZ19g6msaBfUWknV7CtoDQYMA03jjk4eCEDzfXhgmt1RIG6CUK+sqLLpIEeHZ8BuenYtg2Op9CLF7THoNFif17CnjpORcnT4X451rCkrTuIVs3imsaQ4MSdwzbOPFdiC++qSCsani+hlfWmC+bz8acnVeYvmnmjZsK16cVvLLCL5MxDk/4bOSRYRvV2Ji6ZxNqbaTIZgUcGwxgIC1gSUDVT0EnXeNK5EjjxiFAhwDCKEEtMQZuZqhnAEKAg2kF1BJg+7YBnD5bRRAoZOoBPU/h6Z0unn8yx3LRsCzg2x9C7No9A9sSXYMvkWAJC2xKwRnx1GNZvL2/yGlFzKRso2fKBjNDTqdJa9KaRqKAaqwXGOsbQHNmTM8o3H+fg4kDQ7jnLpv1peckAwUi2mnyOgZyWYlfJ6vY8cw0/rgQMzj6bkUAtAbcvHl1/YiNY++W8MSODKLIZAxJ5aTMpHV2wFAfRhpX/q4hquqOUti9BKcUPPdnzC6OY80Ujz2SwbkLMS5dqeHH36qo1YwBpQVMTsXsBQpKALtVUrsXBmgjz1csgykmmunf9XgOB4/4eHCzA8sSSBLNxqOMIbAUeLkybvcSnDTd+kAao5udRd9Rdrz2lscM7B0vLDwno77zsY98zvxOmdQJh+yBAAZRDnTd1SYwrec8xa5/72iAl1+dZXkoHZkBCZaFilVNde4jEv0MvXQqpXF7SeL4VxWM75tj7QlUEGjcuyGFw6/fho1329xV2xlR9hRXA/mc4M0dx5iS1sWCcTudtDQo8dnJCva+Oc9/kyiNdSWJbaNp7gts0n5Lsa4Ll0oBp85EuHo9gUrMJYX2CkLN/miAWDsk8cnxAGfORii4ElFkJCHJ+kpDQb1fmCoXRgpDgxY++NTnjf5DaN4hZoiRxqCCc+2G4gpINYG80FcvsCiNypoN9tCWNDauT+HS5RqclCk4zSAbDYuIao2xJi+xcyzL71GHJMmWBaDrtX12TuHQER/jL7g48eFanP8rXtzzF360Ya+eniPDFooFiWNfVjB10ZTidlczu/UBaebmBd4/6nOvH9ueYRM1g+w2+BAp4OLlGr7+PsJHnwdtLyILgDd1+M+Iq1/Z5HPj9P1eThuHacjVBq3qmgUF1/T9fgITVt1kZAKx4l6QLHOnbzcasXoFLbHKQ97yAP4FUID0HB00ydsAAAAASUVORK5CYII=">
 <link rel="icon" type="image/png" href="/favicon.png" sizes="any">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // Apply the saved theme before first paint (dark by default).
+  (function(){var t='dark';try{t=localStorage.getItem('cn_admin_theme')||'dark'}catch(e){}document.documentElement.setAttribute('data-theme',t)})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#F0F2F8;--card:#fff;--card-border:#E5E7EB;
-  --primary:#4F6BF6;--primary-hover:#3B55E6;--primary-light:#EEF0FF;
-  --success:#10B981;--success-bg:#ECFDF5;
-  --warning:#F59E0B;--warning-bg:#FFFBEB;
-  --danger:#EF4444;--danger-bg:#FEF2F2;
-  --info:#3B82F6;--info-bg:#EFF6FF;
-  --text:#1A1A2E;--text-sec:#6B7280;--text-muted:#9CA3AF;
-  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04);
-  --radius:12px;
+:root,[data-theme="dark"]{
+  --bg:#0A0D14;--sidebar:#0D111A;--card:#121722;--surface-2:#171D2A;--card-border:#222A3A;--border-strong:#2C3548;
+  --input-bg:#0E131C;--row-hover:#151B27;--track:#232B3B;
+  --primary:#6C7BFF;--primary-hover:#5867F2;--primary-light:rgba(108,123,255,.12);--primary-ring:rgba(108,123,255,.35);
+  --success:#22C55E;--success-bg:rgba(34,197,94,.12);
+  --warning:#F5A524;--warning-bg:rgba(245,165,36,.12);
+  --danger:#F05252;--danger-bg:rgba(240,82,82,.12);
+  --info:#3B9EFF;--info-bg:rgba(59,158,255,.12);
+  --purple:#A78BFA;--purple-bg:rgba(167,139,250,.14);
+  --pink:#F472B6;--pink-bg:rgba(244,114,182,.14);
+  --text:#E6E9F2;--text-sec:#9AA3B5;--text-muted:#687187;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+  --shadow-md:0 12px 32px rgba(0,0,0,.45);
+  --radius:12px;color-scheme:dark;
 }
-body{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
-#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#4F6BF6 0%,#7C3AED 100%)}
-.login-card{background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15)}
-.login-card h1{font-size:26px;color:var(--text);margin-bottom:6px;font-weight:700}
-.login-card p{color:var(--text-sec);margin-bottom:28px;font-size:14px}
-.login-card input{width:100%;padding:14px 16px;border:2px solid var(--card-border);border-radius:10px;background:#F9FAFB;color:var(--text);font-size:14px;outline:none;margin-bottom:16px;transition:.2s}
-.login-card input:focus{border-color:var(--primary);background:#fff}
-.login-card .btn-login{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s}
+[data-theme="light"]{
+  --bg:#F5F6FA;--sidebar:#FFFFFF;--card:#FFFFFF;--surface-2:#F8F9FC;--card-border:#E4E7EE;--border-strong:#D5DAE3;
+  --input-bg:#F8F9FC;--row-hover:#F6F7FB;--track:#E8EBF1;
+  --primary:#4F5BEA;--primary-hover:#3E49D8;--primary-light:#EEF0FF;--primary-ring:rgba(79,91,234,.25);
+  --success:#12A150;--success-bg:#E8F7EE;
+  --warning:#C27C0E;--warning-bg:#FDF4E3;
+  --danger:#DC3B3B;--danger-bg:#FDECEC;
+  --info:#2477E0;--info-bg:#E9F2FD;
+  --purple:#7C5BE6;--purple-bg:#F1ECFD;
+  --pink:#D23E8F;--pink-bg:#FCEBF4;
+  --text:#121826;--text-sec:#5B6475;--text-muted:#8A93A6;
+  --shadow:0 1px 2px rgba(16,24,40,.05);
+  --shadow-md:0 12px 32px rgba(16,24,40,.12);
+  color-scheme:light;
+}
+html,body{background:var(--bg)}
+body{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased}
+code{font-family:'Cascadia Code','JetBrains Mono',Consolas,monospace}
+.i{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.i-sm{width:15px;height:15px}
+
+/* ── Login ─────────────────────────────────────────────── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px;
+  background:radial-gradient(900px 500px at 15% 0%,rgba(108,123,255,.16),transparent 60%),radial-gradient(700px 500px at 100% 100%,rgba(167,139,250,.10),transparent 60%),var(--bg)}
+.login-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;box-shadow:var(--shadow-md)}
+.login-card h1{font-size:22px;color:var(--text);margin-bottom:6px;font-weight:700;letter-spacing:-.01em}
+.login-card p{color:var(--text-sec);margin-bottom:26px;font-size:13.5px}
+.login-card input{width:100%;padding:12px 14px;border:1px solid var(--card-border);border-radius:10px;background:var(--input-bg);color:var(--text);font-size:14px;outline:none;margin-bottom:14px;transition:.15s}
+.login-card input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.login-card .btn-login{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
 .login-card .btn-login:hover{background:var(--primary-hover)}
 .login-card .btn-login:disabled{opacity:.7;cursor:not-allowed}
 .login-card .btn-login .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
-.login-logo{width:72px;height:72px;border-radius:16px;margin:0 auto 20px;display:block}
-.login-error-msg{color:var(--danger);margin-top:14px;font-size:13px;font-weight:500;min-height:20px;transition:opacity .2s}
+.login-logo{width:56px;height:56px;border-radius:14px;margin:0 auto 18px;display:block}
+.login-error-msg{color:var(--danger);margin-top:12px;font-size:13px;font-weight:500;min-height:20px;transition:opacity .2s}
 .login-error-msg:empty{opacity:0}
-.login-info-msg{color:var(--primary);margin-top:14px;font-size:13px;font-weight:500;min-height:20px}
+.login-info-msg{color:var(--primary);margin-top:12px;font-size:13px;font-weight:500;min-height:20px}
 @keyframes headShake{0%{transform:translateX(0)}6.5%{transform:translateX(-6px)}18.5%{transform:translateX(5px)}31.5%{transform:translateX(-3px)}43.5%{transform:translateX(2px)}50%{transform:translateX(0)}}
 .shake{animation:headShake .5s ease-in-out}
-#dashboard{display:none;padding:24px 32px;max-width:1400px;margin:0 auto}
-.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
-.dash-header h1{font-size:22px;font-weight:700;color:var(--text)}
-.dash-header h1 span{font-size:22px}
-.header-right{display:flex;gap:10px;align-items:center}
-.period-toggle{display:flex;background:#fff;border-radius:8px;overflow:hidden;border:1px solid var(--card-border)}
-.period-toggle button{padding:8px 16px;background:none;border:none;font-size:13px;cursor:pointer;color:var(--text-sec);font-weight:500;transition:.2s}
-.period-toggle button.active{background:var(--primary);color:#fff}
-.btn-logout{padding:8px 16px;background:#fff;border:1px solid var(--card-border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--text-sec);font-weight:500;transition:.2s}
-.btn-logout:hover{border-color:var(--danger);color:var(--danger)}
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:28px}
-.stat-card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:16px;border:1px solid var(--card-border)}
-.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+
+/* ── App shell ─────────────────────────────────────────── */
+#dashboard{display:none}
+.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;background:var(--sidebar);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:18px 14px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 20px}
+.brand img{width:30px;height:30px;border-radius:8px}
+.brand b{font-size:15px;font-weight:700;letter-spacing:-.01em;display:block}
+.brand small{font-size:11.5px;color:var(--text-muted)}
+.nav-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;padding:0 10px 8px}
+.tab-nav{display:flex;flex-direction:column;gap:2px}
+.tab-nav button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;background:none;border:none;border-radius:8px;font:inherit;font-size:13.5px;font-weight:500;color:var(--text-sec);cursor:pointer;text-align:left;transition:background .15s,color .15s}
+.tab-nav button:hover{background:var(--row-hover);color:var(--text)}
+.tab-nav button.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+.sidebar-foot{margin-top:auto;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--card-border);padding-top:12px}
+.side-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;background:none;border:none;border-radius:8px;font:inherit;font-size:13.5px;font-weight:500;color:var(--text-sec);cursor:pointer;text-align:left;transition:.15s}
+.side-btn:hover{background:var(--row-hover);color:var(--text)}
+.side-btn.logout:hover{color:var(--danger)}
+[data-theme="dark"] .only-light,[data-theme="light"] .only-dark{display:none}
+
+.main{min-width:0;padding:24px 32px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.topbar h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.topbar p{color:var(--text-sec);font-size:13px;margin-top:3px}
+.header-right{display:flex;gap:8px;align-items:center}
+
+/* ── Cards & stats ─────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:14px;border:1px solid var(--card-border);min-width:0}
+.stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .stat-icon.blue{background:var(--info-bg);color:var(--info)}
 .stat-icon.green{background:var(--success-bg);color:var(--success)}
 .stat-icon.orange{background:var(--warning-bg);color:var(--warning)}
-.stat-icon.purple{background:#F3E8FF;color:#7C3AED}
-.stat-info .stat-label{font-size:13px;color:var(--text-sec);margin-bottom:4px}
-.stat-info .stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1.1}
-.stat-info .stat-change{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:4px}
-.stat-change.up{color:var(--success)}
-.stat-change.down{color:var(--danger)}
-.charts-row{display:grid;grid-template-columns:1.2fr 0.8fr;gap:20px;margin-bottom:28px}
-.chart-card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--card-border)}
-.chart-card h3{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
-.chart-tabs{display:flex;gap:4px}
-.chart-tabs button{padding:4px 12px;background:none;border:1px solid var(--card-border);border-radius:6px;font-size:12px;cursor:pointer;color:var(--text-sec);transition:.2s}
-.chart-tabs button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-.chart-full{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:28px;border:1px solid var(--card-border)}
-.chart-full h3{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
-.section{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;border:1px solid var(--card-border)}
-.section h2{font-size:17px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.stat-icon.purple{background:var(--purple-bg);color:var(--purple)}
+.stat-icon.indigo{background:var(--primary-light);color:var(--primary)}
+.stat-info{min-width:0}
+.stat-info .stat-label{font-size:12.5px;color:var(--text-sec);margin-bottom:6px;font-weight:500}
+.stat-info .stat-value{font-size:26px;font-weight:700;color:var(--text);line-height:1.1;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis}
+.stats-grid.compact .stat-card{padding:14px 16px;align-items:center}
+.stats-grid.compact .stat-icon{width:32px;height:32px;border-radius:8px}
+.stats-grid.compact .stat-info .stat-label{margin-bottom:2px;font-size:12px}
+.stats-grid.compact .stat-info .stat-value{font-size:18px}
+.section-gap{height:8px}
+
+.charts-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin-bottom:16px}
+.charts-row.even{grid-template-columns:repeat(2,minmax(0,1fr))}
+.chart-card,.chart-full{background:var(--card);border-radius:var(--radius);padding:18px 20px 20px;box-shadow:var(--shadow);border:1px solid var(--card-border);min-width:0}
+.chart-full{margin-bottom:16px}
+.chart-card h3,.chart-full h3{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.chart-tabs{display:flex;gap:2px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:8px;padding:2px}
+.chart-tabs button{padding:4px 10px;background:none;border:none;border-radius:6px;font:inherit;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-sec);transition:.15s}
+.chart-tabs button:hover{color:var(--text)}
+.chart-tabs button.active{background:var(--card);color:var(--text);box-shadow:var(--shadow)}
+.chart-box{position:relative;height:240px}
+.donut-center{position:absolute;top:calc(50% - 16px);left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.donut-center .pct{font-size:28px;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.donut-center .lbl{font-size:12px;color:var(--text-sec)}
+
+.section{background:var(--card);border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid var(--card-border)}
+.section h2{font-size:15px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.section .sub{color:var(--text-sec);font-size:13px;margin-bottom:18px;line-height:1.55}
+.section .sub code{color:var(--primary)}
+
+/* ── Forms & buttons ───────────────────────────────────── */
 .form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .form-group{display:flex;flex-direction:column;flex:1;min-width:150px}
-.form-group label{font-size:12px;color:var(--text-sec);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
-.form-group input,.form-group select,.form-group textarea{padding:10px 12px;border:1px solid var(--card-border);border-radius:8px;background:#F9FAFB;color:var(--text);font-size:13px;outline:none;transition:.2s}
-.form-group input:focus,.form-group select:focus{border-color:var(--primary);background:#fff}
-.btn{padding:10px 20px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.form-group label{font-size:12px;color:var(--text-sec);margin-bottom:6px;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{padding:9px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--input-bg);color:var(--text);font:inherit;font-size:13.5px;outline:none;transition:.15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.btn{padding:9px 16px;border:1px solid transparent;border-radius:8px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:disabled{opacity:.6;cursor:not-allowed}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-primary:hover{background:var(--primary-hover)}
-.btn-success{background:var(--success);color:#fff}
-.btn-success:hover{background:#059669}
-.btn-danger{background:var(--danger);color:#fff}
-.btn-danger:hover{background:#DC2626}
-.btn-warning{background:var(--warning);color:#fff}
-.btn-warning:hover{background:#D97706}
-.btn-info{background:var(--info);color:#fff}
-.btn-info:hover{background:#2563EB}
-.btn-sm{padding:6px 12px;font-size:11px}
-.btn-outline{background:#fff;border:1px solid var(--card-border);color:var(--text-sec)}
-.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-success{background:var(--success-bg);color:var(--success);border-color:transparent}
+.btn-success:hover{border-color:var(--success)}
+.btn-danger{background:var(--danger-bg);color:var(--danger)}
+.btn-danger:hover{border-color:var(--danger)}
+.btn-warning{background:var(--warning-bg);color:var(--warning)}
+.btn-warning:hover{border-color:var(--warning)}
+.btn-info{background:var(--info-bg);color:var(--info)}
+.btn-info:hover{border-color:var(--info)}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:7px}
+.btn-outline{background:var(--card);border:1px solid var(--card-border);color:var(--text-sec)}
+.btn-outline:hover{border-color:var(--border-strong);color:var(--text)}
+.check-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-sec);cursor:pointer}
+.check-row input{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
+
+/* ── Tables ────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;border:1px solid var(--card-border);border-radius:10px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:12px;border-bottom:2px solid var(--card-border);color:var(--text-sec);font-size:11px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;white-space:nowrap}
-td{padding:12px;border-bottom:1px solid #F3F4F6;white-space:nowrap}
-tr:hover td{background:#F9FAFB}
-.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+th{text-align:left;padding:10px 14px;background:var(--surface-2);border-bottom:1px solid var(--card-border);color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--card-border);white-space:nowrap;color:var(--text)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--row-hover)}
+td .btn-sm{margin:1px 0}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;text-transform:capitalize}
 .badge-active{background:var(--success-bg);color:var(--success)}
 .badge-expired{background:var(--warning-bg);color:var(--warning)}
 .badge-revoked{background:var(--danger-bg);color:var(--danger)}
-.badge-trial{background:#EEF2FF;color:#4F46E5}
-.badge-basic{background:var(--info-bg);color:var(--info)}
-.badge-pro{background:#F3E8FF;color:#7C3AED}
-.badge-agency{background:#FDF2F8;color:#DB2777}
-.key-display{font-family:'Courier New',monospace;font-size:14px;background:var(--primary-light);padding:14px 16px;border-radius:10px;border:2px solid #C7D2FE;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
-.key-display .key-text{color:var(--primary);font-weight:700;letter-spacing:1px}
-.key-display .copy-btn{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600}
+.badge-trial{background:var(--primary-light);color:var(--primary)}
+.badge-basic,.badge-starter{background:var(--info-bg);color:var(--info)}
+.badge-pro,.badge-growth{background:var(--purple-bg);color:var(--purple)}
+.badge-agency,.badge-agency_pro{background:var(--pink-bg);color:var(--pink)}
+.key-display{font-family:'Cascadia Code',Consolas,monospace;font-size:14px;background:var(--primary-light);padding:12px 14px;border-radius:10px;border:1px solid var(--primary-ring);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.key-display .key-text{color:var(--primary);font-weight:700;letter-spacing:1px;overflow:hidden;text-overflow:ellipsis}
+.key-display .copy-btn{background:var(--primary);color:#fff;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
 .key-display .copy-btn:hover{background:var(--primary-hover)}
-.filters{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.filters input{padding:10px 14px;border:1px solid var(--card-border);border-radius:8px;background:#F9FAFB;color:var(--text);font-size:13px;outline:none;min-width:200px}
-.filters input:focus{border-color:var(--primary)}
-.filters select{padding:10px 14px;border:1px solid var(--card-border);border-radius:8px;background:#F9FAFB;color:var(--text);font-size:13px;outline:none;cursor:pointer}
-.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filters input,.filters select{padding:9px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--input-bg);color:var(--text);font:inherit;font-size:13px;outline:none}
+.filters input{min-width:240px;flex:1;max-width:360px}
+.filters select{cursor:pointer}
+.filters input:focus,.filters select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.empty{text-align:center;color:var(--text-muted);padding:30px}
+
+/* ── Modals, toast, misc ───────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(5,8,14,.6);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.show{display:flex}
-.modal{background:var(--card);border-radius:16px;padding:28px;width:100%;max-width:550px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.modal h3{font-size:18px;margin-bottom:16px;font-weight:600}
-.modal .close-modal{float:right;background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px;transition:.2s}
-.modal .close-modal:hover{color:var(--text)}
-.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
-.machine-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;margin-bottom:8px;font-size:12px;border:1px solid var(--card-border)}
-.progress-bar{height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;width:100%}
+.modal{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:24px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-md)}
+.modal h3{font-size:17px;margin-bottom:16px;font-weight:600}
+.modal h4{color:var(--text)}
+.modal .close-modal{float:right;background:none;border:none;color:var(--text-muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px;transition:.15s}
+.modal .close-modal:hover{color:var(--text);background:var(--row-hover)}
+.modal-actions{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+.machine-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--surface-2);border-radius:8px;margin-bottom:8px;font-size:12px;border:1px solid var(--card-border)}
+.progress-bar{height:6px;background:var(--track);border-radius:4px;overflow:hidden;width:100%}
 .progress-bar .fill{height:100%;border-radius:4px;transition:width .3s}
-.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
-.donut-center .pct{font-size:32px;font-weight:700;color:var(--text)}
-.donut-center .lbl{font-size:12px;color:var(--text-sec)}
-#generated-key-result{display:none;margin-top:16px}
-.toast{position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid var(--card-border);border-radius:12px;padding:14px 20px;font-size:13px;z-index:2000;animation:slideIn .3s ease;box-shadow:var(--shadow-md)}
-.toast.success{border-left:4px solid var(--success)}
-.toast.error{border-left:4px solid var(--danger)}
-@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--card-border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+#generated-key-result{display:none;margin-top:4px}
+.toast{position:fixed;bottom:20px;right:20px;max-width:min(420px,calc(100vw - 32px));background:var(--card);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:12px 16px;font-size:13px;z-index:2000;animation:slideIn .25s ease;box-shadow:var(--shadow-md)}
+.toast.success{border-left:3px solid var(--success)}
+.toast.error{border-left:3px solid var(--danger)}
+@keyframes slideIn{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--card-border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+.btn-primary .spinner{border-color:rgba(255,255,255,.35);border-top-color:#fff}
 @keyframes spin{to{transform:rotate(360deg)}}
-.tab-nav{display:flex;gap:4px;margin-bottom:24px;background:#F9FAFB;border-radius:10px;padding:4px;border:1px solid var(--card-border)}
-.tab-nav button{flex:1;padding:10px 16px;background:none;border:none;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-sec);cursor:pointer;transition:.2s}
-.tab-nav button.active{background:#fff;color:var(--primary);box-shadow:var(--shadow);font-weight:600}
 .tab-content{display:none}
-.tab-content.active{display:block}
-@media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
-@media(max-width:768px){#dashboard{padding:16px}.stats-grid{grid-template-columns:1fr}.form-row{flex-direction:column}}
+.tab-content.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.manifest-box{background:var(--surface-2);border:1px solid var(--card-border);border-radius:10px;padding:14px;font-family:'Cascadia Code',Consolas,monospace;font-size:12px;color:var(--text);overflow:auto;max-height:280px}
+.mini-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+.mini-stats .stat-card{padding:14px 16px}
+.mini-stats .stat-value{font-size:20px}
+#error-banner{background:var(--danger-bg);border:1px solid var(--danger);border-radius:10px;padding:12px 16px;margin-bottom:18px;color:var(--danger);font-size:13px;font-weight:500}
+
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.charts-row,.charts-row.even{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .sidebar{position:sticky;top:0;z-index:50;height:auto;flex-direction:row;align-items:center;gap:8px;padding:10px 16px;border-right:none;border-bottom:1px solid var(--card-border);overflow-x:auto}
+  .brand{padding:0 6px 0 0}.brand div,.nav-label{display:none}
+  .tab-nav{flex-direction:row;gap:4px}
+  .tab-nav button{width:auto;white-space:nowrap;padding:8px 10px}
+  .sidebar-foot{margin:0 0 0 auto;flex-direction:row;border-top:none;padding-top:0}
+  .side-btn span{display:none}
+  .main{padding:18px 16px 40px}
+  .stats-grid{grid-template-columns:minmax(0,1fr)}
+  .form-row{flex-direction:column}
+  .filters input{min-width:0;max-width:none;width:100%}
+}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-dollar" viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
+</svg>
+
 <div id="login-screen">
   <div class="login-card" id="login-card">
     <img src="/favicon.png" alt="ColdNerd" class="login-logo">
     <h1>ColdNerd Admin</h1>
-    <p>License &amp; TTS Management Dashboard</p>
-    <input type="password" id="login-password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <p>License, usage and release management</p>
+    <input type="password" id="login-password" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn-login" id="login-btn" onclick="doLogin()">Sign In</button>
     <p class="login-error-msg" id="login-error"></p>
     <p class="login-info-msg" id="login-info" style="display:none"></p>
@@ -152,259 +265,208 @@ tr:hover td{background:#F9FAFB}
 </div>
 
 <div id="dashboard">
-  <!-- Error Banner -->
-  <div id="error-banner" style="display:none;background:var(--danger-bg);border:1px solid var(--danger);border-radius:10px;padding:14px 20px;margin-bottom:20px;color:var(--danger);font-size:13px;font-weight:500;display:none">
-    <span id="error-banner-text"></span>
-    <button onclick="this.parentElement.style.display='none'" style="float:right;background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;font-weight:700">&times;</button>
-  </div>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><img src="/favicon.png" alt=""><div><b>ColdNerd</b><small>Admin console</small></div></div>
+    <div class="nav-label">Manage</div>
+    <nav class="tab-nav">
+      <button class="active" data-title="Overview" data-sub="Usage, revenue and activity across every license." onclick="switchTab('overview',this)"><svg class="i"><use href="#i-overview"/></svg><span>Overview</span></button>
+      <button data-title="Licenses" data-sub="Generate, extend, revoke and inspect license keys." onclick="switchTab('licenses',this)"><svg class="i"><use href="#i-key"/></svg><span>Licenses</span></button>
+      <button data-title="Lead Quotas" data-sub="Per-license lead scraping limits." onclick="switchTab('leads',this)"><svg class="i"><use href="#i-target"/></svg><span>Lead Quotas</span></button>
+      <button data-title="TTS Management" data-sub="Voice character limits and usage." onclick="switchTab('tts',this)"><svg class="i"><use href="#i-mic"/></svg><span>TTS</span></button>
+      <button data-title="App Updates" data-sub="Publish a new desktop release to every client." onclick="switchTab('updates',this)"><svg class="i"><use href="#i-rocket"/></svg><span>App Updates</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="side-btn" onclick="toggleTheme()" title="Toggle theme"><svg class="i only-dark"><use href="#i-sun"/></svg><svg class="i only-light"><use href="#i-moon"/></svg><span class="only-dark">Light mode</span><span class="only-light">Dark mode</span></button>
+      <button class="side-btn logout" onclick="doLogout()" title="Log out"><svg class="i"><use href="#i-logout"/></svg><span>Log out</span></button>
+    </div>
+  </aside>
 
-  <!-- Header -->
-  <div class="dash-header">
-    <h1><img src="/favicon.png" alt="" style="width:32px;height:32px;border-radius:6px;vertical-align:middle;margin-right:8px">ColdNerd Admin</h1>
-    <div class="header-right">
-      <button class="btn btn-outline btn-sm" onclick="refreshAll()">&#128260; Refresh</button>
-      <button class="btn-logout" onclick="doLogout()">Logout</button>
+  <main class="main">
+    <div id="error-banner" style="display:none">
+      <span id="error-banner-text"></span>
+      <button onclick="this.parentElement.style.display='none'" style="float:right;background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;font-weight:700">&times;</button>
     </div>
-  </div>
 
-  <!-- Stats Cards -->
-  <div class="stats-grid" id="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon blue">&#128172;</div>
-      <div class="stat-info">
-        <div class="stat-label">TTS Characters Generated</div>
-        <div class="stat-value" id="s-tts-chars">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon green">&#128100;</div>
-      <div class="stat-info">
-        <div class="stat-label">Active Licenses</div>
-        <div class="stat-value" id="s-active">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon orange">&#127911;</div>
-      <div class="stat-info">
-        <div class="stat-label">TTS Requests</div>
-        <div class="stat-value" id="s-tts-requests">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon purple">&#128176;</div>
-      <div class="stat-info">
-        <div class="stat-label">Monthly Revenue</div>
-        <div class="stat-value" id="s-revenue">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon blue">&#9993;</div>
-      <div class="stat-info">
-        <div class="stat-label">DMs This Month</div>
-        <div class="stat-value" id="s-dms-month">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon green">&#128238;</div>
-      <div class="stat-info">
-        <div class="stat-label">Total DMs Sent</div>
-        <div class="stat-value" id="s-dms-lifetime">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon orange">&#128270;</div>
-      <div class="stat-info">
-        <div class="stat-label">Profiles Scraped</div>
-        <div class="stat-value" id="s-total-scrapes">&mdash;</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon purple">&#128172;</div>
-      <div class="stat-info">
-        <div class="stat-label">Messages Generated</div>
-        <div class="stat-value" id="s-total-messages">&mdash;</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Charts Row -->
-  <div class="charts-row">
-    <div class="chart-card">
-      <h3>Characters Generated <div class="chart-tabs"><button class="active" onclick="setChartPeriod('daily',this)">Daily</button><button onclick="setChartPeriod('weekly',this)">Weekly</button><button onclick="setChartPeriod('monthly',this)">Monthly</button></div></h3>
-      <div style="position:relative;height:220px"><canvas id="wordsChart"></canvas></div>
-    </div>
-    <div class="chart-card" style="position:relative">
-      <h3>License Tiers</h3>
-      <div style="position:relative;height:220px"><canvas id="tierChart"></canvas></div>
-      <div class="donut-center" id="donut-center">
-        <div class="pct" id="donut-total">&mdash;</div>
-        <div class="lbl">Total Keys</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Monthly Usage Bar Chart -->
-  <div class="chart-full">
-    <h3>TTS Usage Overview <div class="chart-tabs"><button class="active" onclick="setBarPeriod('daily',this)">Daily</button><button onclick="setBarPeriod('weekly',this)">Weekly</button></div></h3>
-    <div style="position:relative;height:180px"><canvas id="usageChart"></canvas></div>
-  </div>
-
-  <!-- DM Activity Chart -->
-  <div class="chart-full">
-    <h3>DM Activity (last 30 days) <div class="chart-tabs"><button class="active" onclick="setDmPeriod('daily',this)">Daily</button><button onclick="setDmPeriod('weekly',this)">Weekly</button></div></h3>
-    <div style="position:relative;height:200px"><canvas id="dmsChart"></canvas></div>
-  </div>
-
-  <!-- Scraping & Messages Charts -->
-  <div class="charts-row">
-    <div class="chart-card">
-      <h3>Scraping Activity (30 days) <div class="chart-tabs"><button class="active" onclick="setScrapePeriod('daily',this)">Daily</button><button onclick="setScrapePeriod('weekly',this)">Weekly</button></div></h3>
-      <div style="position:relative;height:220px"><canvas id="scrapesChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Messages Generated (30 days) <div class="chart-tabs"><button class="active" onclick="setMsgPeriod('daily',this)">Daily</button><button onclick="setMsgPeriod('weekly',this)">Weekly</button></div></h3>
-      <div style="position:relative;height:220px"><canvas id="messagesChart"></canvas></div>
-    </div>
-  </div>
-
-  <!-- Tab Navigation -->
-  <div class="tab-nav">
-    <button class="active" onclick="switchTab('licenses',this)">&#128273; Licenses</button>
-    <button onclick="switchTab('leads',this)">&#128270; Lead Quotas</button>
-    <button onclick="switchTab('tts',this)">&#127911; TTS Management</button>
-    <button onclick="switchTab('updates',this)">&#128640; App Updates</button>
-  </div>
-
-  <!-- Licenses Tab -->
-  <div class="tab-content active" id="tab-licenses">
-    <div class="section">
-      <h2>&#128273; Generate License Key</h2>
-      <div class="form-row">
-        <div class="form-group"><label>Tier</label><select id="gen-tier"><option value="basic">Basic ($29/mo)</option><option value="pro" selected>Pro ($49/mo)</option><option value="agency">Agency ($99/mo)</option><option value="trial">Trial (Free)</option></select></div>
-        <div class="form-group"><label>Duration (days)</label><input type="number" id="gen-duration" value="30" min="1" max="365"></div>
-        <div class="form-group"><label>Max Machines (0=default)</label><input type="number" id="gen-machines" value="0" min="0" max="100"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Notes</label><input type="text" id="gen-notes" placeholder="Customer name, order ID..."></div>
-      </div>
-      <button class="btn btn-primary" onclick="generateKey()" id="gen-btn">&#128273; Generate Key</button>
-      <div id="generated-key-result"><div class="key-display"><span class="key-text" id="gen-key-text"></span><button class="copy-btn" onclick="copyKey()">&#128203; Copy</button></div></div>
-    </div>
-    <div class="section">
-      <h2>&#128203; All License Keys</h2>
-      <div class="filters">
-        <input type="text" id="filter-search" placeholder="&#128269; Search key, notes..." oninput="filterKeys()">
-        <select id="filter-status" onchange="filterKeys()"><option value="">All Status</option><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option></select>
-        <select id="filter-tier" onchange="filterKeys()"><option value="">All Tiers</option><option value="trial">Trial</option><option value="basic">Basic</option><option value="pro">Pro</option><option value="agency">Agency</option></select>
-      </div>
-      <div style="overflow-x:auto">
-        <table><thead><tr><th>Key</th><th>Tier</th><th>Status</th><th>Machines</th><th>DMs (month)</th><th>DMs Lifetime</th><th>Scraped</th><th>AI Scraped</th><th>Msgs Gen</th><th>Created</th><th>Expires</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="keys-tbody"></tbody></table>
-      </div>
-      <p id="keys-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No license keys found.</p>
-    </div>
-  </div>
-
-  <!-- Lead Quotas Tab -->
-  <div class="tab-content" id="tab-leads">
-    <div class="section">
-      <h2>&#128270; Lead Scraping Quotas</h2>
-      <p style="color:var(--text-sec);font-size:13px;margin-bottom:18px;line-height:1.55">
-        Manage per-license lead scraping quotas. You can set a limit, add more leads, or reset the counter for any license.
-        Default limit for new licenses: <strong id="leads-default-display">999,999,999</strong> (effectively unlimited).
-      </p>
-      <div class="form-row" style="margin-bottom:20px">
-        <div class="form-group" style="flex:0 0 240px"><label>Default Lead Limit (new licenses)</label><input type="number" id="leads-default-limit" value="999999999" min="0"></div>
-        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="setDefaultLeadLimit()" style="margin-top:auto">Save Default</button></div>
-      </div>
-      <div style="overflow-x:auto">
-        <table><thead><tr><th>License Key</th><th>Tier</th><th>Leads Used</th><th>Leads Limit</th><th>Usage</th><th>Actions</th></tr></thead><tbody id="leads-tbody"></tbody></table>
-      </div>
-      <p id="leads-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No lead usage tracked yet.</p>
-    </div>
-  </div>
-
-  <!-- TTS Tab -->
-  <div class="tab-content" id="tab-tts">
-    <div class="section">
-      <h2>&#9881;&#65039; TTS Settings</h2>
-      <div class="form-row">
-        <div class="form-group"><label>Default Character Limit (new users)</label><input type="number" id="tts-default-limit" value="5000" min="100"></div>
-        <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="setDefaultLimit()" style="margin-top:auto">Save Default Limit</button></div>
-      </div>
-      <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
-        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">TTS Active Users</div><div class="stat-value" id="s-tts-users">&mdash;</div></div></div>
-        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Characters</div><div class="stat-value" id="s-tts-chars2">&mdash;</div></div></div>
-        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Total Requests</div><div class="stat-value" id="s-tts-reqs2">&mdash;</div></div></div>
-        <div class="stat-card" style="flex:1;min-width:160px"><div class="stat-info"><div class="stat-label">Default Limit</div><div class="stat-value" id="s-tts-deflim">&mdash;</div></div></div>
-      </div>
-    </div>
-    <div class="section">
-      <h2>&#128100; TTS Users</h2>
-      <div style="overflow-x:auto">
-        <table><thead><tr><th>License Key</th><th>Name</th><th>Tier</th><th>Chars Used</th><th>Limit</th><th>Usage</th><th>Requests</th><th>Last Request</th><th>Actions</th></tr></thead><tbody id="tts-tbody"></tbody></table>
-      </div>
-      <p id="tts-empty" style="text-align:center;color:var(--text-muted);padding:30px;display:none">No TTS users yet.</p>
-    </div>
-  </div>
-
-  <!-- App Updates Tab -->
-  <div class="tab-content" id="tab-updates">
-    <div class="section">
-      <h2>&#128640; Publish a New ColdNerd Release</h2>
-      <p style="color:var(--text-sec);font-size:13px;margin-bottom:18px;line-height:1.55">
-        Fill in the GitHub release details below and hit <b>Publish Update</b>. Every running
-        ColdNerd desktop app will see an <b>Update v{version}</b> pill in the title bar
-        on its next background poll (or immediately on next launch / when the user
-        clicks <b>Check for Updates</b>). The pill downloads the EXE, verifies the
-        SHA-256 (if provided), swaps in the new build, and relaunches.
-      </p>
-      <div class="form-row">
-        <div class="form-group" style="flex:0 0 200px"><label>Version *</label><input type="text" id="upd-version" placeholder="e.g. 2.3.0"></div>
-        <div class="form-group"><label>Download URL *</label><input type="text" id="upd-url" placeholder="https://github.com/.../releases/download/v2.3.0/ColdNerd.exe"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>SHA-256 (optional)</label><input type="text" id="upd-sha256" placeholder="64-character hex digest"></div>
-        <div class="form-group" style="flex:0 0 200px"><label>Minimum Supported</label><input type="text" id="upd-min" placeholder="e.g. 2.0.0"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Release Notes / Changelog</label><textarea id="upd-notes" rows="4" placeholder="What's new in this build? Markdown / plain text — shown to the user before they install." style="resize:vertical;font-family:inherit"></textarea></div>
-      </div>
-      <div class="form-row" style="align-items:center;gap:18px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-sec);cursor:pointer">
-          <input type="checkbox" id="upd-mandatory" style="width:16px;height:16px;cursor:pointer">
-          <span>Mandatory update <span style="color:var(--text-muted);font-weight:400">(client will refuse to keep working on the old version)</span></span>
-        </label>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="upd-publish-btn" onclick="publishUpdate()">&#128640; Publish Update</button>
-        <button class="btn btn-outline" onclick="loadManifest()">&#128260; Refresh from server</button>
-        <button class="btn btn-outline" onclick="copyManifestUrl()">&#128279; Copy /api/version URL</button>
+    <div class="topbar">
+      <div><h1 id="page-title">Overview</h1><p id="page-sub">Usage, revenue and activity across every license.</p></div>
+      <div class="header-right">
+        <button class="btn btn-outline" onclick="refreshAll()"><svg class="i i-sm"><use href="#i-refresh"/></svg>Refresh</button>
       </div>
     </div>
 
-    <div class="section">
-      <h2>&#128203; Current Live Manifest</h2>
-      <p style="color:var(--text-sec);font-size:13px;margin-bottom:14px">
-        This is exactly what every desktop app sees when it polls
-        <code style="color:var(--primary)">GET /api/version</code>.
-        Polling runs in the background every 30&nbsp;min, plus immediately on app launch
-        and whenever the user clicks <b>Check for Updates</b>.
-      </p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px">
-        <div class="stat-card" style="padding:16px"><div class="stat-info"><div class="stat-label">Latest Version</div><div class="stat-value" id="cur-version" style="font-size:22px">&mdash;</div></div></div>
-        <div class="stat-card" style="padding:16px"><div class="stat-info"><div class="stat-label">Mandatory</div><div class="stat-value" id="cur-mandatory" style="font-size:22px">&mdash;</div></div></div>
-        <div class="stat-card" style="padding:16px"><div class="stat-info"><div class="stat-label">Min Supported</div><div class="stat-value" id="cur-min" style="font-size:22px">&mdash;</div></div></div>
+    <!-- Overview -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-icon green"><svg class="i"><use href="#i-users"/></svg></div><div class="stat-info"><div class="stat-label">Active Licenses</div><div class="stat-value" id="s-active">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-icon purple"><svg class="i"><use href="#i-dollar"/></svg></div><div class="stat-info"><div class="stat-label">Monthly Revenue</div><div class="stat-value" id="s-revenue">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><svg class="i"><use href="#i-send"/></svg></div><div class="stat-info"><div class="stat-label">DMs This Month</div><div class="stat-value" id="s-dms-month">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-icon orange"><svg class="i"><use href="#i-search"/></svg></div><div class="stat-info"><div class="stat-label">Profiles Scraped</div><div class="stat-value" id="s-total-scrapes">&mdash;</div></div></div>
       </div>
-      <div style="background:#F9FAFB;border:1px solid var(--card-border);border-radius:10px;padding:14px;font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:12px;color:var(--text);overflow:auto;max-height:280px">
-        <pre id="cur-manifest-pre" style="margin:0;white-space:pre-wrap;word-break:break-all">Loading…</pre>
+      <div class="stats-grid compact">
+        <div class="stat-card"><div class="stat-icon indigo"><svg class="i i-sm"><use href="#i-mail"/></svg></div><div class="stat-info"><div class="stat-label">Total DMs Sent</div><div class="stat-value" id="s-dms-lifetime">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-icon indigo"><svg class="i i-sm"><use href="#i-message"/></svg></div><div class="stat-info"><div class="stat-label">Messages Generated</div><div class="stat-value" id="s-total-messages">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-icon indigo"><svg class="i i-sm"><use href="#i-type"/></svg></div><div class="stat-info"><div class="stat-label">TTS Characters</div><div class="stat-value" id="s-tts-chars">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-icon indigo"><svg class="i i-sm"><use href="#i-activity"/></svg></div><div class="stat-info"><div class="stat-label">TTS Requests</div><div class="stat-value" id="s-tts-requests">&mdash;</div></div></div>
+      </div>
+      <div class="section-gap"></div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>DM Activity <span style="color:var(--text-muted);font-weight:500;font-size:12px;margin-right:auto">last 30 days</span><div class="chart-tabs"><button class="active" onclick="setDmPeriod('daily',this)">Daily</button><button onclick="setDmPeriod('weekly',this)">Weekly</button></div></h3>
+          <div class="chart-box"><canvas id="dmsChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>License Tiers</h3>
+          <div class="chart-box"><canvas id="tierChart"></canvas>
+            <div class="donut-center" id="donut-center"><div class="pct" id="donut-total">&mdash;</div><div class="lbl">Total keys</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-row even">
+        <div class="chart-card">
+          <h3>Scraping Activity <span style="color:var(--text-muted);font-weight:500;font-size:12px;margin-right:auto">30 days</span><div class="chart-tabs"><button class="active" onclick="setScrapePeriod('daily',this)">Daily</button><button onclick="setScrapePeriod('weekly',this)">Weekly</button></div></h3>
+          <div class="chart-box"><canvas id="scrapesChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Messages Generated <span style="color:var(--text-muted);font-weight:500;font-size:12px;margin-right:auto">30 days</span><div class="chart-tabs"><button class="active" onclick="setMsgPeriod('daily',this)">Daily</button><button onclick="setMsgPeriod('weekly',this)">Weekly</button></div></h3>
+          <div class="chart-box"><canvas id="messagesChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-row even">
+        <div class="chart-card">
+          <h3>TTS Characters <div class="chart-tabs"><button class="active" onclick="setChartPeriod('daily',this)">Daily</button><button onclick="setChartPeriod('weekly',this)">Weekly</button><button onclick="setChartPeriod('monthly',this)">Monthly</button></div></h3>
+          <div class="chart-box"><canvas id="wordsChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>TTS Usage <div class="chart-tabs"><button class="active" onclick="setBarPeriod('daily',this)">Daily</button><button onclick="setBarPeriod('weekly',this)">Weekly</button></div></h3>
+          <div class="chart-box"><canvas id="usageChart"></canvas></div>
+        </div>
       </div>
     </div>
-  </div>
+
+    <!-- Licenses -->
+    <div class="tab-content" id="tab-licenses">
+      <div class="section">
+        <h2>Generate License Key</h2>
+        <p class="sub">Create a key for a customer. Max machines 0 uses the tier default.</p>
+        <div class="form-row">
+          <div class="form-group"><label>Tier</label><select id="gen-tier"><option value="basic">Basic ($29/mo)</option><option value="pro" selected>Pro ($49/mo)</option><option value="agency">Agency ($99/mo)</option><option value="trial">Trial (Free)</option></select></div>
+          <div class="form-group"><label>Duration (days)</label><input type="number" id="gen-duration" value="30" min="1" max="365"></div>
+          <div class="form-group"><label>Max machines (0 = default)</label><input type="number" id="gen-machines" value="0" min="0" max="100"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Notes</label><input type="text" id="gen-notes" placeholder="Customer name, order ID..."></div>
+        </div>
+        <button class="btn btn-primary" onclick="generateKey()" id="gen-btn">&#128273; Generate Key</button>
+        <div id="generated-key-result"><div class="key-display"><span class="key-text" id="gen-key-text"></span><button class="copy-btn" onclick="copyKey()">Copy</button></div></div>
+      </div>
+      <div class="section">
+        <h2>All License Keys</h2>
+        <p class="sub">Search by key or notes, and filter by status or tier.</p>
+        <div class="filters">
+          <input type="text" id="filter-search" placeholder="Search key, notes..." oninput="filterKeys()">
+          <select id="filter-status" onchange="filterKeys()"><option value="">All statuses</option><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option></select>
+          <select id="filter-tier" onchange="filterKeys()"><option value="">All tiers</option><option value="trial">Trial</option><option value="basic">Basic</option><option value="pro">Pro</option><option value="agency">Agency</option></select>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Key</th><th>Tier</th><th>Status</th><th>Machines</th><th>DMs (month)</th><th>DMs Lifetime</th><th>Scraped</th><th>AI Scraped</th><th>Msgs Gen</th><th>Created</th><th>Expires</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="keys-tbody"></tbody></table>
+        </div>
+        <p id="keys-empty" class="empty" style="display:none">No license keys found.</p>
+      </div>
+    </div>
+
+    <!-- Lead Quotas -->
+    <div class="tab-content" id="tab-leads">
+      <div class="section">
+        <h2>Lead Scraping Quotas</h2>
+        <p class="sub">Set a limit, add more leads, or reset the counter for any license.
+          Default limit for new licenses: <strong id="leads-default-display">999,999,999</strong> (effectively unlimited).</p>
+        <div class="form-row" style="align-items:flex-end">
+          <div class="form-group" style="flex:0 1 260px"><label>Default lead limit (new licenses)</label><input type="number" id="leads-default-limit" value="999999999" min="0"></div>
+          <div><button class="btn btn-primary" onclick="setDefaultLeadLimit()">Save Default</button></div>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>License Key</th><th>Tier</th><th>Leads Used</th><th>Leads Limit</th><th>Usage</th><th>Actions</th></tr></thead><tbody id="leads-tbody"></tbody></table>
+        </div>
+        <p id="leads-empty" class="empty" style="display:none">No lead usage tracked yet.</p>
+      </div>
+    </div>
+
+    <!-- TTS -->
+    <div class="tab-content" id="tab-tts">
+      <div class="mini-stats">
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">TTS Active Users</div><div class="stat-value" id="s-tts-users">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">Total Characters</div><div class="stat-value" id="s-tts-chars2">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">Total Requests</div><div class="stat-value" id="s-tts-reqs2">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">Default Limit</div><div class="stat-value" id="s-tts-deflim">&mdash;</div></div></div>
+      </div>
+      <div class="section">
+        <h2>TTS Settings</h2>
+        <p class="sub">Character allowance given to new users.</p>
+        <div class="form-row" style="align-items:flex-end">
+          <div class="form-group" style="flex:0 1 260px"><label>Default character limit (new users)</label><input type="number" id="tts-default-limit" value="5000" min="100"></div>
+          <div><button class="btn btn-primary" onclick="setDefaultLimit()">Save Default Limit</button></div>
+        </div>
+      </div>
+      <div class="section">
+        <h2>TTS Users</h2>
+        <p class="sub">Add characters, change limits, name or reset users.</p>
+        <div class="table-wrap">
+          <table><thead><tr><th>License Key</th><th>Name</th><th>Tier</th><th>Chars Used</th><th>Limit</th><th>Usage</th><th>Requests</th><th>Last Request</th><th>Actions</th></tr></thead><tbody id="tts-tbody"></tbody></table>
+        </div>
+        <p id="tts-empty" class="empty" style="display:none">No TTS users yet.</p>
+      </div>
+    </div>
+
+    <!-- App Updates -->
+    <div class="tab-content" id="tab-updates">
+      <div class="mini-stats">
+        <div class="stat-card"><div class="stat-icon indigo"><svg class="i"><use href="#i-rocket"/></svg></div><div class="stat-info"><div class="stat-label">Live version</div><div class="stat-value" id="cur-version">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">Mandatory</div><div class="stat-value" id="cur-mandatory">&mdash;</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">Min supported</div><div class="stat-value" id="cur-min">&mdash;</div></div></div>
+      </div>
+      <div class="section">
+        <h2>Publish a New Release</h2>
+        <p class="sub">Upload <code>ColdNerd.exe</code> to a GitHub release, then fill this in and publish.
+          Every running ColdNerd app shows an <b>Update v{version}</b> button in its title bar within 30&nbsp;minutes
+          (immediately on launch or on <b>Check for Updates</b>). The app downloads the EXE, checks the SHA-256 if given,
+          swaps in the new build and restarts.</p>
+        <div class="form-row">
+          <div class="form-group" style="flex:0 1 200px"><label>Version *</label><input type="text" id="upd-version" placeholder="e.g. 2.4.1"></div>
+          <div class="form-group"><label>Download URL *</label><input type="text" id="upd-url" placeholder="https://github.com/.../releases/download/v2.4.1/ColdNerd.exe"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>SHA-256 (optional)</label><input type="text" id="upd-sha256" placeholder="64-character hex digest"></div>
+          <div class="form-group" style="flex:0 1 200px"><label>Minimum supported</label><input type="text" id="upd-min" placeholder="e.g. 2.0.0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Release notes</label><textarea id="upd-notes" rows="4" placeholder="What's new in this build? Shown to users before they install." style="resize:vertical"></textarea></div>
+        </div>
+        <div class="form-row">
+          <label class="check-row"><input type="checkbox" id="upd-mandatory"><span>Mandatory update <span style="color:var(--text-muted)">(flag stored in the manifest)</span></span></label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="upd-publish-btn" onclick="publishUpdate()">&#128640; Publish Update</button>
+          <button class="btn btn-outline" onclick="loadManifest()"><svg class="i i-sm"><use href="#i-refresh"/></svg>Reload from server</button>
+          <button class="btn btn-outline" onclick="copyManifestUrl()"><svg class="i i-sm"><use href="#i-link"/></svg>Copy /api/version URL</button>
+        </div>
+      </div>
+      <div class="section">
+        <h2>Current Live Manifest</h2>
+        <p class="sub">Exactly what every desktop app receives from <code>GET /api/version</code>.</p>
+        <div class="manifest-box"><pre id="cur-manifest-pre" style="margin:0;white-space:pre-wrap;word-break:break-all">Loading…</pre></div>
+      </div>
+    </div>
+  </main>
+</div>
 </div>
 
 <!-- Modals -->
-<div class="modal-overlay" id="modal-details"><div class="modal"><button class="close-modal" onclick="closeModal('modal-details')">&times;</button><h3>&#128269; Key Details</h3><div id="modal-details-body"></div></div></div>
-<div class="modal-overlay" id="modal-extend"><div class="modal"><button class="close-modal" onclick="closeModal('modal-extend')">&times;</button><h3>&#9200; Extend License</h3><p style="color:var(--text-sec);margin-bottom:16px;font-size:13px">Key: <code id="extend-key-display" style="color:var(--primary);font-weight:600"></code></p><div class="form-group" style="margin-bottom:16px"><label>Days to Add</label><input type="number" id="extend-days" value="30" min="1" max="365"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-extend')">Cancel</button><button class="btn btn-warning" onclick="doExtend()" id="extend-btn">&#9200; Extend</button></div></div></div>
+<div class="modal-overlay" id="modal-details"><div class="modal"><button class="close-modal" onclick="closeModal('modal-details')">&times;</button><h3>Key Details</h3><div id="modal-details-body"></div></div></div>
+<div class="modal-overlay" id="modal-extend"><div class="modal"><button class="close-modal" onclick="closeModal('modal-extend')">&times;</button><h3>Extend License</h3><p style="color:var(--text-sec);margin-bottom:16px;font-size:13px">Key: <code id="extend-key-display" style="color:var(--primary);font-weight:600"></code></p><div class="form-group" style="margin-bottom:8px"><label>Days to add</label><input type="number" id="extend-days" value="30" min="1" max="365"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-extend')">Cancel</button><button class="btn btn-primary" onclick="doExtend()" id="extend-btn">&#9200; Extend</button></div></div></div>
 <div class="modal-overlay" id="modal-tts-action"><div class="modal"><button class="close-modal" onclick="closeModal('modal-tts-action')">&times;</button><h3 id="tts-action-title">TTS Action</h3><p style="color:var(--text-sec);margin-bottom:16px;font-size:13px">Key: <code id="tts-action-key" style="color:var(--primary);font-weight:600"></code></p><div id="tts-action-body"></div><div class="modal-actions" id="tts-action-btns"></div></div></div>
 
 <script>
@@ -495,7 +557,7 @@ async function apiPost(p,b){
 }
 
 // ─── Tabs ───
-function switchTab(id,btn){document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+id).classList.add('active');document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
+function switchTab(id,btn){document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+id).classList.add('active');document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');if(btn.dataset.title){document.getElementById('page-title').textContent=btn.dataset.title;document.getElementById('page-sub').textContent=btn.dataset.sub||''}window.scrollTo({top:0})}
 
 // ─── Error banner ───
 function showError(msg){
@@ -556,22 +618,22 @@ function fmt(n){return n>=1000?n.toLocaleString():n}
 function renderCharsChart(data){
   const ctx=document.getElementById('wordsChart');
   if(charsChart)charsChart.destroy();
-  charsChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Characters',data:data.map(d=>d.chars),borderColor:'#4F6BF6',backgroundColor:'rgba(79,107,246,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
+  charsChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Characters',data:data.map(d=>d.chars),borderColor:'#4F6BF6',backgroundColor:'rgba(79,107,246,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:CT.tick}},y:{grid:{color:CT.grid},ticks:{font:{size:11},color:CT.tick}}}}})
 }
 function renderTierChart(s){
   const ctx=document.getElementById('tierChart');
   if(tierChart)tierChart.destroy();
-  tierChart=new Chart(ctx,{type:'doughnut',data:{labels:['Trial','Basic','Pro','Agency'],datasets:[{data:[s.trial||0,s.basic||0,s.pro||0,s.agency||0],backgroundColor:['#818CF8','#3B82F6','#7C3AED','#DB2777'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}}}})
+  tierChart=new Chart(ctx,{type:'doughnut',data:{labels:['Trial','Basic','Pro','Agency'],datasets:[{data:[s.trial||0,s.basic||0,s.pro||0,s.agency||0],backgroundColor:['#818CF8','#3B82F6','#7C3AED','#DB2777'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:CT.legend}}}}})
 }
 function renderUsageChart(data){
   const ctx=document.getElementById('usageChart');
   if(usageChart)usageChart.destroy();
-  usageChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Characters',data:data.map(d=>d.chars),backgroundColor:'#4F6BF6',borderRadius:4},{label:'Requests',data:data.map(d=>d.requests),backgroundColor:'#93C5FD',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'}}}}})
+  usageChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'Characters',data:data.map(d=>d.chars),backgroundColor:'#4F6BF6',borderRadius:4},{label:'Requests',data:data.map(d=>d.requests),backgroundColor:'#93C5FD',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:CT.legend}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:CT.tick}},y:{grid:{color:CT.grid},ticks:{font:{size:11},color:CT.tick}}}}})
 }
 function renderDmsChart(data){
   const ctx=document.getElementById('dmsChart');if(!ctx)return;
   if(dmsChart)dmsChart.destroy();
-  dmsChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'DMs Sent',data:data.map(d=>d.dms||0),backgroundColor:'#10B981',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'},beginAtZero:true}}}})
+  dmsChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[{label:'DMs Sent',data:data.map(d=>d.dms||0),backgroundColor:'#10B981',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:CT.legend}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:CT.tick}},y:{grid:{color:CT.grid},ticks:{font:{size:11},color:CT.tick},beginAtZero:true}}}})
 }
 function aggregateDmsWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,dms:0};w[wk].dms+=d.dms||0});return Object.values(w)}
 function setDmPeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
@@ -583,14 +645,14 @@ function renderScrapesChart(data){
   scrapesChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date.slice(5)),datasets:[
     {label:'Scraped',data:data.map(d=>d.scrapes||0),backgroundColor:'#F59E0B',borderRadius:4},
     {label:'AI Classified',data:data.map(d=>d.ai_scrapes||0),backgroundColor:'#8B5CF6',borderRadius:4}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:'#6B7280'}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'},beginAtZero:true}}}})
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:12},color:CT.legend}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:CT.tick}},y:{grid:{color:CT.grid},ticks:{font:{size:11},color:CT.tick},beginAtZero:true}}}})
 }
 function renderMessagesChart(data){
   const ctx=document.getElementById('messagesChart');if(!ctx)return;
   if(messagesChart)messagesChart.destroy();
   messagesChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.date.slice(5)),datasets:[
     {label:'Messages',data:data.map(d=>d.messages||0),borderColor:'#7C3AED',backgroundColor:'rgba(124,58,237,.1)',fill:true,tension:.4,pointRadius:2,pointHoverRadius:5}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#9CA3AF'}},y:{grid:{color:'#F3F4F6'},ticks:{font:{size:11},color:'#9CA3AF'},beginAtZero:true}}}})
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:CT.tick}},y:{grid:{color:CT.grid},ticks:{font:{size:11},color:CT.tick},beginAtZero:true}}}})
 }
 function aggregateScrapesWeekly(data){const w={};data.forEach(d=>{const dt=new Date(d.date);const wk=d.date.slice(0,7)+'-W'+Math.ceil(dt.getDate()/7);if(!w[wk])w[wk]={date:wk,scrapes:0,ai_scrapes:0,messages:0};w[wk].scrapes+=d.scrapes||0;w[wk].ai_scrapes+=d.ai_scrapes||0;w[wk].messages+=d.messages||0});return Object.values(w)}
 function setScrapePeriod(p,btn){btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
@@ -611,7 +673,7 @@ async function loadLeads(){
       const pct=isUnlimited?0:Math.min(100,limit>0?Math.round(used*100/limit):0);
       const color=pct>=90?'var(--danger)':pct>=70?'var(--warning)':'var(--primary)';
       const usageTxt=isUnlimited?`${used.toLocaleString()} <span style="color:var(--text-muted);font-size:11px">/ Unlimited</span>`:`${used.toLocaleString()} / ${limit.toLocaleString()}`;
-      const bar=isUnlimited?'<span style="color:var(--success);font-size:11px">Unlimited</span>':`<div style="width:100px;height:6px;background:#E5E7EB;border-radius:3px;margin-top:3px"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div></div>`;
+      const bar=isUnlimited?'<span style="color:var(--success);font-size:11px">Unlimited</span>':`<div style="width:100px;height:6px;background:var(--track);border-radius:3px;margin-top:3px"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div></div>`;
       return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${u.license_key}</code></td><td><span class="badge badge-${u.tier}">${u.tier}</span></td><td style="font-weight:600">${used.toLocaleString()}</td><td>${isUnlimited?'Unlimited':limit.toLocaleString()}</td><td style="min-width:120px">${bar}</td><td><button class="btn btn-primary btn-sm" onclick="doLeadSetLimit('${u.license_key}')">Set Limit</button> <button class="btn btn-warning btn-sm" onclick="doLeadAdd('${u.license_key}')">+Add</button> <button class="btn btn-info btn-sm" onclick="doLeadReset('${u.license_key}')">Reset</button></td></tr>`
     }).join('');
   }catch(e){console.error('loadLeads exception:',e)}
@@ -664,12 +726,12 @@ async function loadKeys(){
 function filterKeys(){const s=document.getElementById('filter-search').value.toLowerCase(),st=document.getElementById('filter-status').value,ti=document.getElementById('filter-tier').value;
 let f=allKeys.filter(k=>{if(s&&!k.key.toLowerCase().includes(s)&&!(k.notes||'').toLowerCase().includes(s))return false;if(st&&k.status!==st)return false;if(ti&&k.tier!==ti)return false;return true});renderKeys(f)}
 function renderKeys(keys){const tb=document.getElementById('keys-tbody'),em=document.getElementById('keys-empty');if(!keys.length){tb.innerHTML='';em.style.display='block';return}em.style.display='none';
-tb.innerHTML=keys.map(k=>{const lim=k.dm_limit_monthly||0;const used=k.dms_used_month||0;const usageTxt=lim>0?`${used} / ${lim}`:`${used} <span style="color:var(--text-muted);font-size:11px">∞</span>`;const pct=lim>0?Math.min(100,Math.round(used*100/lim)):0;const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#3B82F6';const bar=lim>0?`<div style="width:80px;height:5px;background:#E5E7EB;border-radius:3px;margin-top:3px"><div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px"></div></div>`:'';const scr=(k.scrapes_lifetime||0).toLocaleString();const aiscr=(k.ai_scrapes_lifetime||0).toLocaleString();const msgs=(k.messages_lifetime||0).toLocaleString();return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${k.key}</code></td><td><span class="badge badge-${k.tier}">${k.tier_name}</span></td><td><span class="badge badge-${k.status}">${k.status}</span></td><td>${k.machine_count}/${k.max_machines}</td><td style="font-size:12px">${usageTxt}${bar}</td><td style="font-size:12px;color:var(--text-sec)">${(k.dms_used_lifetime||0).toLocaleString()}</td><td style="font-size:12px;color:var(--text-sec)">${scr}</td><td style="font-size:12px;color:var(--text-sec)">${aiscr}</td><td style="font-size:12px;color:var(--text-sec)">${msgs}</td><td style="color:var(--text-sec)">${k.created_at_human}</td><td style="color:var(--text-sec)">${k.expires_at_human}</td><td style="color:var(--text-sec);max-width:120px;overflow:hidden;text-overflow:ellipsis">${k.notes||'—'}</td><td><button class="btn btn-info btn-sm" onclick="showDetails('${k.key}')">&#128269;</button> <button class="btn btn-warning btn-sm" onclick="showExtend('${k.key}')">&#9200;</button> ${k.status==='active'?`<button class="btn btn-danger btn-sm" onclick="doRevoke('${k.key}')">Revoke</button> `:k.status==='revoked'?`<button class="btn btn-success btn-sm" onclick="doUnrevoke('${k.key}')">&#9989;</button> `:''}<button class="btn btn-danger btn-sm" onclick="doDelete('${k.key}')">&#128465;</button></td></tr>`}).join('')}
+tb.innerHTML=keys.map(k=>{const lim=k.dm_limit_monthly||0;const used=k.dms_used_month||0;const usageTxt=lim>0?`${used} / ${lim}`:`${used} <span style="color:var(--text-muted);font-size:11px">∞</span>`;const pct=lim>0?Math.min(100,Math.round(used*100/lim)):0;const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#3B82F6';const bar=lim>0?`<div style="width:80px;height:5px;background:var(--track);border-radius:3px;margin-top:3px"><div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px"></div></div>`:'';const scr=(k.scrapes_lifetime||0).toLocaleString();const aiscr=(k.ai_scrapes_lifetime||0).toLocaleString();const msgs=(k.messages_lifetime||0).toLocaleString();return `<tr><td><code style="color:var(--primary);font-size:12px;font-weight:600">${k.key}</code></td><td><span class="badge badge-${k.tier}">${k.tier_name}</span></td><td><span class="badge badge-${k.status}">${k.status}</span></td><td>${k.machine_count}/${k.max_machines}</td><td style="font-size:12px">${usageTxt}${bar}</td><td style="font-size:12px;color:var(--text-sec)">${(k.dms_used_lifetime||0).toLocaleString()}</td><td style="font-size:12px;color:var(--text-sec)">${scr}</td><td style="font-size:12px;color:var(--text-sec)">${aiscr}</td><td style="font-size:12px;color:var(--text-sec)">${msgs}</td><td style="color:var(--text-sec)">${k.created_at_human}</td><td style="color:var(--text-sec)">${k.expires_at_human}</td><td style="color:var(--text-sec);max-width:120px;overflow:hidden;text-overflow:ellipsis">${k.notes||'—'}</td><td><button class="btn btn-info btn-sm" onclick="showDetails('${k.key}')">&#128269;</button> <button class="btn btn-warning btn-sm" onclick="showExtend('${k.key}')">&#9200;</button> ${k.status==='active'?`<button class="btn btn-danger btn-sm" onclick="doRevoke('${k.key}')">Revoke</button> `:k.status==='revoked'?`<button class="btn btn-success btn-sm" onclick="doUnrevoke('${k.key}')">&#9989;</button> `:''}<button class="btn btn-danger btn-sm" onclick="doDelete('${k.key}')">&#128465;</button></td></tr>`}).join('')}
 async function generateKey(){const btn=document.getElementById('gen-btn');btn.innerHTML='<div class="spinner"></div> Generating...';btn.disabled=true;try{const r=await apiPost('/admin/generate',{tier:document.getElementById('gen-tier').value,duration_days:parseInt(document.getElementById('gen-duration').value),max_machines:parseInt(document.getElementById('gen-machines').value),notes:document.getElementById('gen-notes').value});if(r.success){document.getElementById('gen-key-text').textContent=r.key;document.getElementById('generated-key-result').style.display='block';toast('License key generated!','success');refreshAll()}else toast(r.error||'Failed','error')}catch(e){toast('Network error','error')}btn.innerHTML='&#128273; Generate Key';btn.disabled=false}
 function copyKey(){navigator.clipboard.writeText(document.getElementById('gen-key-text').textContent).then(()=>toast('Key copied!','success'))}
 function showDetails(key){const k=allKeys.find(x=>x.key===key);if(!k)return;
 const machines=(k.machines||[]).map(m=>`<div class="machine-item"><div><strong>${m.machine_name||'Unknown'}</strong><div style="color:var(--text-muted);font-family:monospace;font-size:11px">${m.hwid}</div><div style="color:var(--text-muted);font-size:11px">Activated: ${new Date(m.activated_at*1000).toLocaleString()}</div></div><button class="btn btn-danger btn-sm" onclick="doDeactivate('${key}','${m.hwid}')">Remove</button></div>`).join('')||'<p style="color:var(--text-muted)">No machines</p>';
-const lim=k.dm_limit_monthly||0;const used=k.dms_used_month||0;const remTxt=lim>0?`${Math.max(0,lim-used).toLocaleString()} remaining`:'Unlimited';const pct=lim>0?Math.min(100,Math.round(used*100/lim)):0;const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#3B82F6';const usageBar=lim>0?`<div style="width:100%;height:8px;background:#E5E7EB;border-radius:4px;margin-top:6px"><div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px"></div></div>`:'';const usageBlock=`<h4 style="font-size:14px;margin:18px 0 10px">&#128202; Plan Usage</h4><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;background:#F8FAFC;padding:14px;border-radius:8px;border:1px solid var(--card-border)"><div><span style="color:var(--text-sec);font-size:12px">DMs This Month</span><br><strong style="font-size:16px">${used.toLocaleString()}${lim>0?` / ${lim.toLocaleString()}`:''}</strong>${usageBar}<div style="color:var(--text-muted);font-size:11px;margin-top:4px">${remTxt}</div></div><div><span style="color:var(--text-sec);font-size:12px">Total DMs (Lifetime)</span><br><strong style="font-size:16px">${(k.dms_used_lifetime||0).toLocaleString()}</strong></div><div><span style="color:var(--text-sec);font-size:12px">Browser Profiles</span><br><strong style="font-size:16px">${(k.max_profiles||0)>=9999?'Unlimited':k.max_profiles||1}</strong></div></div>`;
+const lim=k.dm_limit_monthly||0;const used=k.dms_used_month||0;const remTxt=lim>0?`${Math.max(0,lim-used).toLocaleString()} remaining`:'Unlimited';const pct=lim>0?Math.min(100,Math.round(used*100/lim)):0;const barColor=pct>=90?'#DC2626':pct>=70?'#D97706':'#3B82F6';const usageBar=lim>0?`<div style="width:100%;height:8px;background:var(--track);border-radius:4px;margin-top:6px"><div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px"></div></div>`:'';const usageBlock=`<h4 style="font-size:14px;margin:18px 0 10px">&#128202; Plan Usage</h4><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;background:var(--surface-2);padding:14px;border-radius:8px;border:1px solid var(--card-border)"><div><span style="color:var(--text-sec);font-size:12px">DMs This Month</span><br><strong style="font-size:16px">${used.toLocaleString()}${lim>0?` / ${lim.toLocaleString()}`:''}</strong>${usageBar}<div style="color:var(--text-muted);font-size:11px;margin-top:4px">${remTxt}</div></div><div><span style="color:var(--text-sec);font-size:12px">Total DMs (Lifetime)</span><br><strong style="font-size:16px">${(k.dms_used_lifetime||0).toLocaleString()}</strong></div><div><span style="color:var(--text-sec);font-size:12px">Browser Profiles</span><br><strong style="font-size:16px">${(k.max_profiles||0)>=9999?'Unlimited':k.max_profiles||1}</strong></div></div>`;
 document.getElementById('modal-details-body').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px"><div><span style="color:var(--text-sec);font-size:12px">Key</span><br><code style="color:var(--primary);font-weight:600">${k.key}</code></div><div><span style="color:var(--text-sec);font-size:12px">Tier</span><br><span class="badge badge-${k.tier}">${k.tier_name}</span></div><div><span style="color:var(--text-sec);font-size:12px">Status</span><br><span class="badge badge-${k.status}">${k.status}</span></div><div><span style="color:var(--text-sec);font-size:12px">Machines</span><br>${k.machine_count}/${k.max_machines}</div><div><span style="color:var(--text-sec);font-size:12px">Created</span><br>${k.created_at_human}</div><div><span style="color:var(--text-sec);font-size:12px">Expires</span><br>${k.expires_at_human}</div></div>${k.notes?`<div style="margin-bottom:16px"><span style="color:var(--text-sec);font-size:12px">Notes</span><br>${k.notes}</div>`:''}${usageBlock}<h4 style="font-size:14px;margin-bottom:10px">&#128187; Machines</h4>${machines}`;openModal('modal-details')}
 function showExtend(key){currentKey=key;document.getElementById('extend-key-display').textContent=key;document.getElementById('extend-days').value=30;openModal('modal-extend')}
 async function doExtend(){const btn=document.getElementById('extend-btn');btn.innerHTML='<div class="spinner"></div>';btn.disabled=true;try{const r=await apiPost('/admin/extend',{key:currentKey,days:parseInt(document.getElementById('extend-days').value)});toast(r.success?r.message:r.error,r.success?'success':'error');if(r.success){closeModal('modal-extend');refreshAll()}}catch(e){toast('Network error','error')}btn.innerHTML='&#9200; Extend';btn.disabled=false}
@@ -790,6 +852,32 @@ function openModal(id){document.getElementById(id).classList.add('show')}
 function closeModal(id){document.getElementById(id).classList.remove('show')}
 function toast(msg,type='success'){const el=document.createElement('div');el.className='toast '+type;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),4000)}
 document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id)})});
+
+// ─── Theme ───
+const CT={tick:'#687187',grid:'rgba(255,255,255,.06)',legend:'#9AA3B5'};
+function readChartTheme(){
+  const dark=document.documentElement.getAttribute('data-theme')!=='light';
+  CT.tick=dark?'#687187':'#8A93A6';
+  CT.grid=dark?'rgba(255,255,255,.06)':'#EEF0F4';
+  CT.legend=dark?'#9AA3B5':'#5B6475';
+  if(window.Chart){Chart.defaults.font.family="'Inter','Segoe UI',system-ui,sans-serif";Chart.defaults.color=CT.legend;Chart.defaults.borderColor=CT.grid}
+}
+function applyChartTheme(){
+  readChartTheme();
+  [charsChart,tierChart,usageChart,dmsChart,scrapesChart,messagesChart].forEach(c=>{
+    if(!c)return;const o=c.options;
+    if(o.scales){Object.values(o.scales).forEach(s=>{if(s.ticks)s.ticks.color=CT.tick;if(s.grid&&s.grid.display!==false)s.grid.color=CT.grid})}
+    if(o.plugins&&o.plugins.legend&&o.plugins.legend.labels)o.plugins.legend.labels.color=CT.legend;
+    c.update('none');
+  });
+}
+function toggleTheme(){
+  const next=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+  document.documentElement.setAttribute('data-theme',next);
+  try{localStorage.setItem('cn_admin_theme',next)}catch(e){}
+  applyChartTheme();
+}
+readChartTheme();
 </script>
 </body>
 </html>
