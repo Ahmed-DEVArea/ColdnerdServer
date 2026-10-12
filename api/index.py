@@ -2462,6 +2462,16 @@ def serve_portal():
             resp.headers["Content-Type"] = "text/html; charset=utf-8"
             resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             return resp
+    # Same fallback as the admin dashboard: the file is not always bundled.
+    try:
+        gh = http_requests.get("https://raw.githubusercontent.com/Ahmed-DEVArea/ColdnerdServer/main/public/portal.html", timeout=10)
+        if gh.status_code == 200:
+            resp = make_response(gh.text)
+            resp.headers["Content-Type"] = "text/html; charset=utf-8"
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            return resp
+    except Exception:
+        pass
     return "Portal could not be loaded", 500
 
 
