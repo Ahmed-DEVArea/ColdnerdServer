@@ -10,6 +10,7 @@ import json
 import uuid
 import time
 import base64
+import hashlib
 import requests as http_requests
 from datetime import datetime, timedelta
 
@@ -449,6 +450,7 @@ def usage_activity():
     new_scrapes    = _bump_lifetime_counter(r, key, "scrapes_lifetime",    scrapes)
     new_ai_scrapes = _bump_lifetime_counter(r, key, "ai_scrapes_lifetime", ai_scrapes)
     new_messages   = _bump_lifetime_counter(r, key, "messages_lifetime",   messages)
+    _track_pc(r, key, lic, d, {"scrapes": scrapes, "ai_scrapes": ai_scrapes, "messages": messages})
 
     # Track daily totals for the admin dashboard charts
     day = _day_bucket()
@@ -521,6 +523,7 @@ def usage_dm_sent():
             pass
     except Exception as e:
         return cors({"ok": False, "error": f"Counter update failed: {e}"})
+    _track_pc(r, key, lic, d, {"dms": count})
 
     monthly_limit = int(ti.get("dm_limit_monthly", 0) or 0)
     daily_limit   = int(ti.get("dm_limit_daily_per_account", 0) or 0)
@@ -539,6 +542,408 @@ def usage_dm_sent():
         "monthly_limit_reached":     (monthly_limit > 0 and int(new_monthly) >= monthly_limit),
         "daily_limit_reached":       (daily_limit > 0 and int(new_daily) >= daily_limit),
     })
+
+
+# ==================== PER-PC TRACKING (customer portal) ====================
+# Everything a desktop app reports is also counted per PC (hwid) so a
+# customer can see what each of their PCs did. Compact layout, one hash per
+# key per month, so a portal load costs a handful of Redis calls:
+#   pcmon:{key}:{YYYY-MM}  hash  "{DD}|{hwid}|{metric}" -> count  (100-day TTL)
+#   pctot:{key}            hash  "{hwid}|{metric}"      -> lifetime count
+#   pcmeta:{key}           hash  hwid -> JSON {name, version}
+#   pcseen:{key}           hash  hwid -> last report (epoch seconds)
+#   pcrun:{key}            hash  hwid -> JSON list of tools running (heartbeat)
+#   pcruns:{key}           list  recent finished runs (JSON), newest first, max 200
+# Old app builds send no hwid; their reports go to the key's only machine,
+# or to "unknown" when the key has several.
+
+PC_METRICS = (
+    "scrapes", "ai_scrapes", "messages", "dms", "followups",
+    "dm_sessions", "dm_minutes", "warmup_sessions", "warmup_minutes",
+    "scrape_sessions", "scrape_minutes", "msggen_sessions", "msggen_minutes",
+    "followup_sessions", "followup_minutes",
+)
+_SESSION_METRICS = {
+    "dm_outreach":        ("dm_sessions", "dm_minutes"),
+    "warmup":             ("warmup_sessions", "warmup_minutes"),
+    "scraper":            ("scrape_sessions", "scrape_minutes"),
+    "suggestion_scraper": ("scrape_sessions", "scrape_minutes"),
+    "message_generator":  ("msggen_sessions", "msggen_minutes"),
+    "followup":           ("followup_sessions", "followup_minutes"),
+}
+PC_ONLINE_SECONDS = 20 * 60
+
+
+def _safe_hwid(h: str) -> str:
+    return "".join(c for c in (h or "") if c.isalnum())[:64]
+
+
+def _pc_hwid(lic: dict, hwid: str) -> str:
+    hwid = _safe_hwid(hwid)
+    if hwid:
+        return hwid
+    machines = lic.get("machines", [])
+    if len(machines) == 1:
+        return _safe_hwid(machines[0].get("hwid", "")) or "unknown"
+    return "unknown"
+
+
+def _touch_pc(r, key: str, hwid: str, d: dict) -> None:
+    r.hset(f"pcseen:{key}", hwid, str(int(time.time())))
+    name = str(d.get("machine_name") or "").strip()[:120]
+    if name:
+        r.hset(f"pcmeta:{key}", hwid, json.dumps({
+            "name": name, "version": str(d.get("version") or "")[:20],
+        }))
+
+
+def _track_pc(r, key: str, lic: dict, d: dict, metrics: dict) -> None:
+    """Add per-PC counts for one report. Never raises: tracking must not
+    break the endpoint it is attached to."""
+    try:
+        hwid = _pc_hwid(lic, d.get("hwid", ""))
+        now = datetime.now()
+        mon_key = f"pcmon:{key}:{now.strftime('%Y-%m')}"
+        wrote = False
+        for metric, value in metrics.items():
+            value = int(value or 0)
+            if metric not in PC_METRICS or value <= 0:
+                continue
+            r.hincrby(mon_key, f"{now.strftime('%d')}|{hwid}|{metric}", value)
+            r.hincrby(f"pctot:{key}", f"{hwid}|{metric}", value)
+            wrote = True
+        if wrote:
+            r.expire(mon_key, 60 * 60 * 24 * 100)
+        _touch_pc(r, key, hwid, d)
+    except Exception as e:
+        print(f"[PC-TRACK] {key}: {e}")
+
+
+@app.route("/api/usage/session", methods=["POST", "OPTIONS"])
+def usage_session():
+    """A finished run on one PC (DM outreach, warmup, scraper, ...).
+
+    Body: { key, hwid, machine_name, version, tool, status, items, duration_sec }
+    """
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    d = request.get_json(silent=True) or {}
+    key = (d.get("key") or "").strip()
+    tool = str(d.get("tool") or "").strip()
+    if not key or tool not in _SESSION_METRICS:
+        return cors({"success": False, "error": "Missing key or unknown tool"}, 400)
+    r = get_redis()
+    lic = get_lic(r, key)
+    if not lic:
+        return cors({"success": False, "error": "Invalid license key"}, 401)
+
+    items = max(0, int(d.get("items") or 0))
+    duration = max(0.0, float(d.get("duration_sec") or 0))
+    count_metric, minutes_metric = _SESSION_METRICS[tool]
+    metrics = {count_metric: 1, minutes_metric: int(round(duration / 60))}
+    if tool == "followup":
+        metrics["followups"] = items
+    _track_pc(r, key, lic, d, metrics)
+    try:
+        r.lpush(f"pcruns:{key}", json.dumps({
+            "hwid": _pc_hwid(lic, d.get("hwid", "")), "tool": tool,
+            "status": str(d.get("status") or "")[:20], "items": items,
+            "duration_sec": int(duration), "at": int(time.time()),
+        }))
+        r.ltrim(f"pcruns:{key}", 0, 199)
+    except Exception:
+        pass
+    return cors({"success": True})
+
+
+@app.route("/api/usage/heartbeat", methods=["POST", "OPTIONS"])
+def usage_heartbeat():
+    """Periodic "this PC is online" ping with the tools currently running.
+
+    Body: { key, hwid, machine_name, version, running: ["dm_outreach", ...] }
+    """
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    d = request.get_json(silent=True) or {}
+    key = (d.get("key") or "").strip()
+    if not key:
+        return cors({"success": False, "error": "Missing key"}, 400)
+    r = get_redis()
+    lic = get_lic(r, key)
+    if not lic:
+        return cors({"success": False, "error": "Invalid license key"}, 401)
+    hwid = _pc_hwid(lic, d.get("hwid", ""))
+    running = [str(t)[:30] for t in (d.get("running") or []) if t][:10]
+    try:
+        _touch_pc(r, key, hwid, d)
+        r.hset(f"pcrun:{key}", hwid, json.dumps(running))
+    except Exception as e:
+        return cors({"success": False, "error": str(e)}, 500)
+    return cors({"success": True})
+
+
+# ==================== CUSTOMERS & PORTAL ====================
+# A customer groups license keys and gets a private access code for /portal.
+#   customer:{id}        JSON {id, name, keys, code_hash, created_at}
+#   customers:index      set of customer ids
+#   custcode:{sha256}    -> customer id
+
+def _code_hash(code: str) -> str:
+    return hashlib.sha256((code or "").strip().upper().encode()).hexdigest()
+
+
+def _new_portal_code() -> str:
+    return "-".join(uuid.uuid4().hex[:4].upper() for _ in range(4))
+
+
+def _get_customer(r, cid: str):
+    raw = r.get(f"customer:{cid}")
+    if not raw:
+        return None
+    return json.loads(raw) if isinstance(raw, str) else raw
+
+
+def _save_customer(r, cust: dict) -> None:
+    r.set(f"customer:{cust['id']}", json.dumps(cust))
+    r.sadd("customers:index", cust["id"])
+
+
+def _hgetall(r, k: str) -> dict:
+    try:
+        v = r.hgetall(k) or {}
+    except Exception:
+        return {}
+    if isinstance(v, list):
+        v = dict(zip(v[0::2], v[1::2]))
+    return v
+
+
+def _mask_key(k: str) -> str:
+    parts = (k or "").split("-")
+    if len(parts) >= 4:
+        return "-".join(parts[:2] + ["••••"] * (len(parts) - 3) + parts[-1:])
+    return k[:6] + "••••" if len(k) > 6 else k
+
+
+def _lic_status(lic: dict) -> str:
+    if lic.get("revoked"):
+        return "revoked"
+    if time.time() > lic.get("expires_at", 0):
+        return "expired"
+    return "active"
+
+
+def _portal_payload(r, cust: dict) -> dict:
+    now = datetime.now()
+    days = [now - timedelta(days=29 - i) for i in range(30)]
+    day_index = {d.strftime("%Y-%m-%d"): i for i, d in enumerate(days)}
+    months = sorted({d.strftime("%Y-%m") for d in days})
+    now_ts = time.time()
+    keys_out, pcs_out, runs_out = [], [], []
+
+    for ki, key in enumerate(cust.get("keys", [])):
+        lic = get_lic(r, key)
+        if not lic:
+            keys_out.append({"key": _mask_key(key), "missing": True})
+            continue
+        tier = lic.get("tier", "basic")
+        ti = TIERS.get(tier, TIERS["basic"])
+        dm = get_usage_stats(r, key, ti)
+        machines = lic.get("machines", [])
+        keys_out.append({
+            "key": _mask_key(key), "tier_name": ti["name"], "status": _lic_status(lic),
+            "expires_at_human": ts_human(lic.get("expires_at", 0)),
+            "machines_used": len(machines),
+            "machines_max": lic.get("max_machines_override") or ti["max_machines"],
+            "dms_month": dm["dms_used_month"], "dm_limit_month": dm["dms_limit_month"],
+            "lifetime": {
+                "dms": dm["dms_used_lifetime"],
+                "scrapes": _get_lifetime_counter(r, key, "scrapes_lifetime"),
+                "ai_scrapes": _get_lifetime_counter(r, key, "ai_scrapes_lifetime"),
+                "messages": _get_lifetime_counter(r, key, "messages_lifetime"),
+            },
+        })
+
+        meta = {}
+        for h, v in _hgetall(r, f"pcmeta:{key}").items():
+            try:
+                meta[h] = json.loads(v) if isinstance(v, str) else v
+            except Exception:
+                pass
+        seen = _hgetall(r, f"pcseen:{key}")
+        running = {}
+        for h, v in _hgetall(r, f"pcrun:{key}").items():
+            try:
+                running[h] = json.loads(v) if isinstance(v, str) else v
+            except Exception:
+                running[h] = []
+        totals = {}
+        for f, v in _hgetall(r, f"pctot:{key}").items():
+            h, _, metric = f.partition("|")
+            totals.setdefault(h, {})[metric] = int(v)
+        daily = {}
+        for m in months:
+            for f, v in _hgetall(r, f"pcmon:{key}:{m}").items():
+                dd, h, metric = (f.split("|") + ["", ""])[:3]
+                idx = day_index.get(f"{m}-{dd}")
+                if idx is None or not metric:
+                    continue
+                daily.setdefault(h, {}).setdefault(metric, [0] * 30)[idx] += int(v)
+
+        act_names = {_safe_hwid(m.get("hwid", "")): m.get("machine_name", "") for m in machines}
+        order = list(act_names) + [h for h in list(meta) + list(seen) + list(totals) if h not in act_names]
+        for h in dict.fromkeys(order):
+            if not h:
+                continue
+            last_seen = int(seen.get(h) or 0)
+            online = bool(last_seen) and now_ts - last_seen < PC_ONLINE_SECONDS
+            name = (meta.get(h) or {}).get("name") or act_names.get(h) or (
+                "Unidentified PC (older app version)" if h == "unknown" else "PC " + hashlib.sha1(h.encode()).hexdigest()[:6].upper())
+            pcs_out.append({
+                "id": hashlib.sha1(f"{key}|{h}".encode()).hexdigest()[:12], "name": name, "key": _mask_key(key), "key_index": ki,
+                "activated": h in act_names, "version": (meta.get(h) or {}).get("version", ""),
+                "last_seen": last_seen, "online": online,
+                "running": (running.get(h) or []) if online else [],
+                "totals": totals.get(h, {}), "daily": daily.get(h, {}),
+            })
+
+        try:
+            for raw in r.lrange(f"pcruns:{key}", 0, 49) or []:
+                run = json.loads(raw) if isinstance(raw, str) else raw
+                h = run.get("hwid", "")
+                run["pc"] = (meta.get(h) or {}).get("name") or act_names.get(h) or "PC " + hashlib.sha1(h.encode()).hexdigest()[:6].upper()
+                run["key"] = _mask_key(key)
+                run.pop("hwid", None)
+                runs_out.append(run)
+        except Exception:
+            pass
+
+    runs_out.sort(key=lambda x: x.get("at", 0), reverse=True)
+    return {
+        "success": True, "name": cust.get("name", ""), "generated_at": int(now_ts),
+        "days": [d.strftime("%Y-%m-%d") for d in days],
+        "keys": keys_out, "pcs": pcs_out, "runs": runs_out[:60],
+    }
+
+
+@app.route("/api/portal/login", methods=["POST", "OPTIONS"])
+def portal_login():
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    code = ((request.get_json(silent=True) or {}).get("code") or "").strip()
+    if not code:
+        return cors({"success": False, "error": "Enter your access code"}, 400)
+    r = get_redis()
+    cid = r.get(f"custcode:{_code_hash(code)}")
+    cust = _get_customer(r, cid) if cid else None
+    if not cust:
+        return cors({"success": False, "error": "Invalid access code"}, 401)
+    return cors({"success": True, "name": cust.get("name", "")})
+
+
+@app.route("/api/portal/data", methods=["POST", "OPTIONS"])
+def portal_data():
+    """Portal data for a customer (by access code), or for any customer when
+    the admin previews it (admin password + customer id)."""
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    d = request.get_json(silent=True) or {}
+    r = get_redis()
+    cust = None
+    if d.get("preview_id") and verify_admin(request):
+        cust = _get_customer(r, str(d["preview_id"]))
+    elif d.get("code"):
+        cid = r.get(f"custcode:{_code_hash(d['code'])}")
+        cust = _get_customer(r, cid) if cid else None
+    if not cust:
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    return cors(_portal_payload(r, cust))
+
+
+@app.route("/api/admin/customers", methods=["GET", "OPTIONS"])
+def admin_customers():
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    r = get_redis()
+    out = []
+    for cid in r.smembers("customers:index") or []:
+        cust = _get_customer(r, cid)
+        if cust:
+            out.append({"id": cust["id"], "name": cust.get("name", ""),
+                        "keys": cust.get("keys", []), "created_at_human": ts_human(cust.get("created_at", 0))})
+    out.sort(key=lambda c: c["name"].lower())
+    return cors({"success": True, "customers": out})
+
+
+@app.route("/api/admin/customers/save", methods=["POST", "OPTIONS"])
+def admin_customers_save():
+    """Create (no id) or update a customer. Returns the access code on create."""
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    d = request.get_json(silent=True) or {}
+    name = str(d.get("name") or "").strip()[:80]
+    keys = [str(k).strip() for k in (d.get("keys") or []) if str(k).strip()]
+    if not name:
+        return cors({"success": False, "error": "Customer name is required"}, 400)
+    r = get_redis()
+    unknown = [k for k in keys if not get_lic(r, k)]
+    if unknown:
+        return cors({"success": False, "error": f"Unknown license key(s): {', '.join(unknown)}"}, 400)
+    cid = str(d.get("id") or "").strip()
+    code = None
+    if cid:
+        cust = _get_customer(r, cid)
+        if not cust:
+            return cors({"success": False, "error": "Customer not found"}, 404)
+        cust.update(name=name, keys=keys)
+    else:
+        cid = uuid.uuid4().hex[:10]
+        code = _new_portal_code()
+        cust = {"id": cid, "name": name, "keys": keys, "code_hash": _code_hash(code), "created_at": time.time()}
+        r.set(f"custcode:{cust['code_hash']}", cid)
+    _save_customer(r, cust)
+    return cors({"success": True, "id": cid, "code": code})
+
+
+@app.route("/api/admin/customers/reset-code", methods=["POST", "OPTIONS"])
+def admin_customers_reset_code():
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    r = get_redis()
+    cust = _get_customer(r, str((request.get_json(silent=True) or {}).get("id") or ""))
+    if not cust:
+        return cors({"success": False, "error": "Customer not found"}, 404)
+    if cust.get("code_hash"):
+        r.delete(f"custcode:{cust['code_hash']}")
+    code = _new_portal_code()
+    cust["code_hash"] = _code_hash(code)
+    r.set(f"custcode:{cust['code_hash']}", cust["id"])
+    _save_customer(r, cust)
+    return cors({"success": True, "code": code})
+
+
+@app.route("/api/admin/customers/delete", methods=["POST", "OPTIONS"])
+def admin_customers_delete():
+    if request.method == "OPTIONS":
+        return cors({}, 200)
+    if not verify_admin(request):
+        return cors({"success": False, "error": "Unauthorized"}, 401)
+    r = get_redis()
+    cid = str((request.get_json(silent=True) or {}).get("id") or "")
+    cust = _get_customer(r, cid)
+    if not cust:
+        return cors({"success": False, "error": "Customer not found"}, 404)
+    if cust.get("code_hash"):
+        r.delete(f"custcode:{cust['code_hash']}")
+    r.delete(f"customer:{cid}")
+    r.srem("customers:index", cid)
+    return cors({"success": True})
 
 
 # ==================== CORS PREFLIGHT ====================
@@ -2042,6 +2447,22 @@ def contact_form():
     except Exception as e:
         print(f"[CONTACT] Error: {str(e)}")
         return cors({"success": False, "error": "Email service error"}, 500)
+
+
+@app.route("/portal", methods=["GET"])
+def serve_portal():
+    """Customer portal (public/portal.html)."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    for p in (os.path.join(os.path.dirname(base), "public", "portal.html"),
+              os.path.join(base, "..", "public", "portal.html"),
+              "/var/task/public/portal.html"):
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                resp = make_response(f.read())
+            resp.headers["Content-Type"] = "text/html; charset=utf-8"
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            return resp
+    return "Portal could not be loaded", 500
 
 
 @app.route("/", methods=["GET"])
